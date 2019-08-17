@@ -1,0 +1,347 @@
+---
+title: "Unit 1 R Markdown"
+author: "Bivin"
+date: "2/20/2019"
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# UNIT 1 R Review Part 1.R
+## Manipulation and Import
+
+### R Data Manipulation and Data Import
+```{r}
+
+#Vectors
+age = c(22,21,24,19,20,23)
+age
+age[2]
+yrs_math_ed = c(4,5,2,5,3,5)
+yrs_math_ed
+
+#data frames
+df1 = data.frame(Age = age, Years = yrs_math_ed)
+df1
+df1[4,2] #Data in the 4th row and 2nd column
+df1[1,] #all the data in the 1st row
+df1$Math_Level #all the data in the fourth column
+
+```
+
+### Add a two more columns (variables).
+```{r}
+a = c("Mary","Martha","Kim","Kristen","Amy","Sam")
+b = c("English","Math","Sociology","Math","Music","Dance")
+
+#Make a data frame
+df2 = data.frame(Name = a, Major = b)
+df2
+```
+
+### Put it together 
+```{r}
+#Make another data frame
+df3 = data.frame(Age = age, Years = yrs_math_ed,Name = a, Major = b)
+df3
+```
+
+### Doing it a different way
+```{r}
+#Cbind combines columns
+df4 = cbind(df1,df2)
+df4
+```
+
+### Checking variable classes
+```{r}
+#str and class show what type of variable it is
+str(df4)
+class(df4$Name)
+summary(df4)
+```
+
+### Define and try and add a new row (student)
+```{r}
+#define a new row / student
+d = c(19,4,"John","Math")
+
+#attempt to add a row
+df5 = rbind(df4,d) #problem here is that Name and Major are factors
+```
+
+
+### Try and fix the problem.
+```{r}
+#try and fix the problem
+dfCopy = df4
+dfCopy$Name = as.character(df4$Name)
+dfCopy$Major = as.character(df4$Major)
+summary(dfCopy)
+```
+
+### Try and add the student again.
+```{r}
+#add the student to the end of the data frame.
+df5 = rbind(dfCopy,d)
+df5
+```
+
+### Look at the classes again.
+```{r}
+#recheck the class
+str(df5)
+summary(df5)
+```
+
+### Return/assign the right class to each variable.
+```{r}
+#fix the classes 
+df5$Age = as.numeric(df5$Age)
+df5$Years = as.numeric(df5$Years)
+summary(df5)
+df5$Name = as.factor(df5$Name)
+df5$Major = as.factor(df5$Major)
+summary(df5)
+```
+
+### Filtering
+```{r}
+#Filter the data frame
+#All students with more than 4 years of Math
+df5[df5$Years > 4,]
+#All students with more than 4 years of Math and are 21 years of age or older
+df5[(df5$Age >= 21 & df5$Years > 4), ]
+#All students that are majoring in Math
+df5[df5$Major == "Math",]
+```
+
+### Data Import from csv
+```{r}
+Example1 = read.csv("/Users/bivin/Desktop/OLD COMPUTER ARCHIVES/KadAfrica/MSDS/DDS/DDS2/Unit 1 Git-ing Sta-R-ted/Datasets/BusinessSales.csv",header = TRUE)
+Example1$sales
+
+```
+
+### Pre loaded datasets / package "datasets" comes with the base R.
+
+```{r}
+# iris is Edgar Anderson's Iris Data
+str(iris) # get type and other variable information
+head(iris) #look at first 6 rows
+tail(iris) #look at last 6 rows.
+iris$Sepal.Width # look at all Sepal.Widths
+```
+
+
+
+### Data that comes with external packages
+mpg is a dataset that comes in the **ggplot2** package, you may have to laod it with "data(mpg)"
+mpg Fuel economy data from 1999 and 2008 for 38 popular models of car
+```{r}
+#install.packages("ggplot2") # I have already installed this package... you only need install the package once.
+library(ggplot2) #However, you need to laod the library each time you start a new session.
+?mpg #mpg info and note that it is a tibble. 
+str(mpg) # get type and other variable information
+head(mpg) #look at first 6 rows.
+mpg$cty #look at all city mpg values.
+```
+
+
+# UNIT 1 R Review Part 2.R
+## Basic "plot" functions: 
+
+### Read in file.
+```{r}
+Example1 = read.csv("/Users/bivin/Desktop/OLD COMPUTER ARCHIVES/KadAfrica/MSDS/DDS/DDS2/Unit 1 Git-ing Sta-R-ted/Datasets/BusinessSales.csv",header = TRUE)
+head(Example1)
+```
+
+### Scatterplots
+```{r}
+#plot(x,y,col,pch,type,ylab,xlab,main)
+plot(Example1$ad_tv,Example1$sales, pch = 15,xlab = "TV Advertising $$$",ylab = "Sales $$$", main = "Sales v. Advertising")
+abline(h = 55, col = "red",lwd = 5)
+```
+
+### plotting wth mpg
+```{r}
+plot(mpg$hwy,mpg$cty,pch = 15) #NO LABLES ... AHHH!!!
+plot(mpg$hwy,mpg$cty,pch = 15, main = "City MPG v. Highway MPG", ylab = "City MPG", xlab = "Highways MPG")
+```
+
+### plot with Iris Data: Sepal Legth v. Petal Length
+```{r}
+plot(iris$Sepal.Length,iris$Petal.Length) #note domain and range of plot
+```
+
+### plot only viginica
+```{r}
+irisVir = iris[iris$Species == "virginica",]
+plot(irisVir$Sepal.Length,irisVir$Petal.Length, col = "blue", ylim = c(0,7), xlim = c(4,8))
+irisVers = iris[iris$Species == "versicolor",]
+points(irisVers$Sepal.Length,irisVers$Petal.Length, col = "Red")
+irisSet = iris[iris$Species == "setosa",]
+points(irisSet$Sepal.Length,irisSet$Petal.Length, col = "green")
+```
+
+### histograms
+```{r}
+hist(mpg$cty,col = "blue")
+```
+
+### boxplots
+```{r}
+boxplot(mpg$cty~mpg$class, main = "Boxplot: City MPG v. Class")
+```
+
+### clearing the plot space
+```{r}
+dev.off()
+```
+
+### Dividing the plot space!  c(num rows, num columns)
+```{r}
+par(mfrow = c(1,2))
+
+hist(mpg$cty,col = "blue", main = "Histogram of MPG", xlab = "MPG")
+boxplot(mpg$cty~mpg$class, data= mpg, main = "Boxplot of MPG by Class", xlab = "Cylinder")
+```
+
+### You Try it! Make a histogram of the Iris Sepal Lengths
+### Comment on the distribution (skewness?  number of modes? etc.)
+
+
+```{r}
+hist(iris$Petal.Length, col = "blue", main = "Histogram of Iris Sepal Lengths")
+```
+
+### barplot
+```{r}
+age = c(22,21,24,19,20,23)
+yrs_math_ed = c(4,5,2,5,3,5)
+names = c("Mary","Martha","Kim","Kristen","Amy","Sam")
+subject = c("English","Math","Sociology","Math","Music","Dance")
+
+df3 = data.frame(Age = age, Years = yrs_math_ed, Name = names, Subject = subject)
+
+barplot(df3$Years, names.arg = df3$Name)
+```
+
+### We want a barplot of frequency of each class of car.
+###note here how the data is in a different format for mpg.
+###it is not one row per relevant observation with the value at the end
+###we need to actually count the number of each class and then plot
+
+### We could count ... that would take a while
+
+### We could turn class into a factor and then let summary count for us.
+```{r}
+summary(mpg$class)
+
+mpg$classFact = as.factor(mpg$class)
+head(mpg)
+summary(mpg$classFact)
+
+barplot(summary(mpg$classFact))
+```
+
+# UNIT 1 R Review Part 3.R
+## Statistics in R
+
+### Sampling Distribution of the Individual
+```{r}
+#draw a sample from a standard normal distribution
+#run many times varying sample size and look at histogram and mean
+sample1 = rnorm(1000,0,1)
+hist(sample1)
+mean(sample1)
+sd(sample1)
+```
+
+### Another way to code the same thing
+```{r}
+population = rnorm(10000000,0,1) #note the the number of draws here
+hist(population)
+sample1 = sample(population,100) #sample of size 100
+hist(sample1)
+mean(sample1)
+sd(sample1)
+```
+
+### Sampling Distribution of the Sample Mean
+now make a function in which you pass the sample size, the number of samples to take #and thus the number of sample means to return as well as the mean and sd.  
+
+Define these outside the function so that they exist outside the function (global)
+
+```{r}
+xBarVec = c() #Global vector to hold the sample means
+population = rnorm(10000000,0,1) #Simulating the population
+```
+
+### The Function
+```{r}
+#####################################################
+# Funciton: xbarGenerator
+# Argements: samplesize: the size of the sample that each sample mean is based on. 
+#            number_of_samples: the number of samples and thus sample means we will generate
+# Author: Bivin Sadler
+#####################################################
+xbarGenerator = function(sampleSize = 30,number_of_samples = 100)
+{
+  for(i in 1:number_of_samples)
+  {
+    theSample = sample(population,sampleSize)
+    xbar = mean(theSample)
+    xBarVec = c(xBarVec, xbar)
+  }
+  return(xBarVec)
+}
+```
+
+### Before you Run This.... What do you think will be the "Sampleing Distribution of the Sample Mean"?
+```{r}
+xbars = xbarGenerator(30,1000)
+length(xbars)
+hist(xbars)
+```
+
+## You Try It
+Now adapt the code above to generate a specified number of sample means of a specified size sample size (this has already been done) from a normally distributed population with a specified meanand standard deviation (currently it is forced to be from a standard normal distribuion N(0,1)).
+
+Run it a few times and use it generate 10000 sample means, each from a sample of size 50, from a normal distribution with mean = 60 and sd = 10.  Provide a distribution (histogram) of the distrubtions as well. 
+
+What is the shape of the distribuion?  What is the mean and sd?  What should they be given the Central Limit Theorem (CLT).  For a refresher of the CLT see the Stats Bridge Course!
+
+
+
+### Possibe Solution
+```{r}
+xBarVec = c() #global vector to hold the sample means
+#####################################################
+# Funciton: xbarGenerator (Adpated)
+# Argements: samplesize: the size of the sample that each sample mean is based on. 
+#            number_of_samples: the number of samples and thus sample means we will generate
+# Author: Bivin Sadler
+#####################################################
+xbarGenerator2 = function(sampleSize = 30,number_of_samples = 100, mean = 0, sd = 1)
+{
+  for(i in 1:number_of_samples)
+  {
+    theSample = rnorm(sampleSize,mean,sd)
+    xbar = mean(theSample)
+    xBarVec = c(xBarVec, xbar)
+  }
+  return(xBarVec)
+}
+
+xbars = xbarGenerator2(60,1000,50,10)
+hist(xbars)
+summary(xbars)
+sd(xbars)
+10/sqrt(60)
+```
