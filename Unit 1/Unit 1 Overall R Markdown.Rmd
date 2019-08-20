@@ -6,6 +6,7 @@ output:
   html_document: default
   word_document: default
 ---
+# modification added by Sid
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
