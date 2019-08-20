@@ -6,3 +6,6 @@ For Live Session Unit 1 DDS Student.pptx: List of items to complete for Live Ses
 CLT_2.Rmd: Rmd file you will need to study and adapt to complete For Live Session material  
 Week_1_Approved.pptx: Powerpoint Slides used in the Asynch material (pdf version on 2DS)  
 
+CSV files:  
+BusinessSales.csv  
+Creativity.csv
