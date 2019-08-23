@@ -11,4 +11,3 @@
 
 Have a Blast and see you in Live Session!
 
-Test
