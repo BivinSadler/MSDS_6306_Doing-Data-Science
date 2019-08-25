@@ -12,13 +12,43 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 # Simulator to Demonstrate CLT
+# rchisq population
+n <- 10000000
+df <- 2
+population <- rchisq(n, df) 
+
+#Histogram of population
+hist(population)
+
+# Mean of population
+mean(population)
+
+#Standard Deviation of population
+sd(population)
+
+# According to the central limit theorem, what should be the approximate distribution of sample means of size 50 from this right skewed population?  What should be the mean and standard error of the mean (standard deviation of the distribution of sample means)?  
+
+#Mean of sample is equal to the Mean of the population, so Mean will remain the same
+mean(population) = 1.999785
+
+#Standard Deviation of the Sampling Distribution
+n <- 50
+mean = 1.999785
+sd = 1.999959
+sqrt(n)
+mean/sqrt(n)
+#Standard Error of the mean
+(n - mean) / (sd / sqrt(50))
+
+#Now let’s check this: Adapt the CLT code to draw 10,000 means each of size 50 from this population and provide the sampling distribution of this sample mean.  Provide a histogram of these 10,000 sample means.
+
 
 ## Control Parameters
 ```{r}
-df = read.table("/Users/bivin/Desktop/OLD COMPUTER ARCHIVES/KadAfrica/MSDS/DDS/MSDS 6306/Unit 5/yob2016.txt",stringsAsFactors = FALSE,header = FALSE,sep = ";")
-n1 = 10 # sample size per sample for 1st distribution
-n2 = 100 # sample size per sample for 2nd distribution (we will compare these distribuions) 
-simulations = 1000 #number of samples and thus number of xbars we will generate.  
+#df = read.table("/Users/bivin/Desktop/OLD COMPUTER ARCHIVES/KadAfrica/MSDS/DDS/MSDS 6306/Unit 5/yob2016.txt",stringsAsFactors = FALSE,header = FALSE,sep = ";")
+n1 = 50 # sample size per sample for 1st distribution
+#n2 = 100 # sample size per sample for 2nd distribution (we will compare these distribuions) 
+simulations = 10000 #number of samples and thus number of xbars we will generate.  
 mu = 0; # mean parameter for use with normal distribuions
 sigma = 1; # standard deviation parameter for use with normal distribuions
 ```
@@ -26,38 +56,43 @@ sigma = 1; # standard deviation parameter for use with normal distribuions
 ## Data Holder
 ```{r}
 xbar_holder1 = numeric(simulations) # This will hold all the sample means for the first distribution.
-xbar_holder2 = numeric(simulations) # This will hold all the sample means for the second distribution.
+#xbar_holder2 = numeric(simulations) # This will hold all the sample means for the second distribution.
 ```
 
 ## Simulate and Store
-Generate 1000 samples each of size 10 and find the mean of each sample.  Then store each mean in the xbar_holder vector.
+Generate 10000 samples each of size 50 and find the mean of each sample.  Then store each mean in the xbar_holder vector.
 
 ```{r}
 for (i in 1:simulations)
 { 
   sample1 = rnorm(n1,mean = mu, sd = sigma)
-  sample2 = rnorm(n2,mean = mu, sd = sigma)
+  #sample2 = rnorm(n2,mean = mu, sd = sigma)
   xbar1 = mean(sample1)
-  xbar2 = mean(sample2)
+  #xbar2 = mean(sample2)
   xbar_holder1[i] = xbar1
-  xbar_holder2[i] = xbar2
+  #xbar_holder2[i] = xbar2
 }
 ```
 
 ## display the distribution of sample means (plot a histogram of the sample means)
 ```{r}
-par(mfrow = c(2,1))
+#par(mfrow = c(2,1))
 hist(xbar_holder1, col = "blue", main = paste("Distribution of the sample mean: n = ", n1), xlab = "Dist 1 Sample Means", xlim = c(-4,4))
-hist(xbar_holder2, col = "red", main = paste("Distribution of the sample mean: n = ", n2), xlab = "Dist 2 Sample Means", xlim = c(-4,4))
+#hist(xbar_holder2, col = "red", main = paste("Distribution of the sample mean: n = ", n2), xlab = "Dist 2 Sample Means", xlim = c(-4,4))
 ```
 
 ## summary statistics of the distribution of the simulated sample means. 
 ```{r}
 summary(xbar_holder1) #5 number summary and the mean
-summary(xbar_holder2) #5 number summary and the mean
+#summary(xbar_holder2) #5 number summary and the mean
 sd(xbar_holder1) # standard deviation of dstribuion 1
-sd(xbar_holder2) #standard deviation of distribuion 2
+#sd(xbar_holder2) #standard deviation of distribuion 2
 
 ```
+
+## t-test
+x = c(25, 19, 37, 29, 40, 28, 31)
+sd(x)
+t.test(x, mu = 21, alternative = "two.sided")
 
 
