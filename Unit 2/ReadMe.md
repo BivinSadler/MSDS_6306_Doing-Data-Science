@@ -11,5 +11,5 @@ PlayersBBall.csv
 
 ## Live Session Material
 For LIve Session Unit 2.pptx: List of items to complete for Live Session  
-CLT_2.Rmd: Rmd file you will need to study and adapt to complete For Live Session material  
+ 
 
