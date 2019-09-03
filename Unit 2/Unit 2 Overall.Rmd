@@ -12,8 +12,19 @@ output: html_document
 
 Scatterplot
 ```{r}
-#install.packages("ggplot2")
-#library(ggplot2)
+#COMMENT THESE OUT AFTER FIRST RUN
+#VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
+install.packages("ggplot2")
+install.packages("dplyr")
+library(ggplot2)
+library(dplyr
+install.packages("maps")
+library(maps)
+install.packages("ggthemes")
+library(ggthemes)
+#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#COMMENT THESE OUT AFTER FIRST RUN 
+
 
 #Iris Scatterplot
 ggplot(data = iris, mapping = aes(x = Sepal.Length, y = Petal.Length)) + geom_point()
@@ -130,7 +141,7 @@ mpg %>%
 ggplot(mapping = aes(x = class)) + 
 geom_bar()
 
-mpg %>% + ggplot(mapping = aes(x = class, y = ..prop.., group = 1)) + geom_bar()
+mpg %>% ggplot(mapping = aes(x = class, y = ..prop.., group = 1)) + geom_bar()
 ```
 
 ### AES: color
@@ -288,7 +299,7 @@ facet_grid(drv~class)
 ```{r}
 mpg %>% ggplot(aes(x = class)) + geom_bar(stat = "count")
 
-mpg %>% ggplot(aes(x = class, y = cty)) + geom_bar()
+mpg %>% ggplot(aes(x = class)) + geom_bar()
 
 #stat = identity adds the values of the y value per class (x level)
 mpg %>% ggplot(aes(x = class, y = cty)) + geom_bar(stat = "identity")
@@ -318,32 +329,25 @@ mpg %>% ggplot(mapping = aes(x = class, fill = drv)) + geom_bar(position = "fill
 
 ### jitter
 ```{r}
-mpg %>% 
-+ ggplot(mapping = aes(x = hwy, y = cty)) + 
-+ geom_point()
+mpg %>% ggplot(mapping = aes(x = hwy, y = cty)) +  geom_point()
 
-mpg %>% 
-+ ggplot(mapping = aes(x = hwy, y = cty)) + 
-+ geom_point(position = "jitter")
+mpg %>% ggplot(mapping = aes(x = hwy, y = cty)) + geom_point(position = "jitter")
 
 ```
 
 ## Other Coordinate Systems
 ### coord_flip
 ```{r}
-mpg %>% + ggplot(mapping = aes(x = class, fill = class)) + geom_bar() + coord_flip()
+mpg %>% ggplot(mapping = aes(x = class, fill = class)) + geom_bar() + coord_flip()
 ```
 
 ### coord_polar
 ```{r}
-mpg %>% + ggplot(mapping = aes(x = class, fill = class)) + geom_bar() + coord_polar()
+mpg %>% ggplot(mapping = aes(x = class, fill = class)) + geom_bar() + coord_polar()
 ```
 
 ### coord_quickmap and map_data
 ```{r}
-install.packages("maps")
-library()
-
 usa = map_data("usa")
 
 p <- ggplot() + 
@@ -369,34 +373,33 @@ coord_quickmap()
 
 ## themes
 ```{r}
-install.package("ggthemes")
-library(ggthemes)
-
 #excel
-ggplot(mapping = aes(x = hwy, y = cty)) + 
+mpg %>% ggplot(mapping = aes(x = hwy, y = cty)) + 
 geom_point(position = "jitter") + 
 ggtitle("City MPG v. Highway MPG") + 
 theme_excel()
 
 mpg %>% 
-+ ggplot(mapping = aes(x = class, fill = class)) +  geom_bar() + theme_excel()
+ggplot(mapping = aes(x = class, fill = class)) +  geom_bar() + theme_excel()
 
 #Economist
+mpg %>% 
 ggplot(mapping = aes(x = hwy, y = cty)) + 
 geom_point(position = "jitter") + 
 ggtitle("City MPG v. Highway MPG") + 
 theme_economist()
 
 mpg %>% 
-+ ggplot(mapping = aes(x = class)) +  geom_bar() + theme_economist()
+ggplot(mapping = aes(x = class)) +  geom_bar() + theme_economist()
 
 #538
+mpg %>% 
 ggplot(mapping = aes(x = hwy, y = cty)) + 
 geom_point(position = "jitter") + 
 ggtitle("City MPG v. Highway MPG") + 
 theme_fivethirtyeight()
 
-mpg %>% +
+mpg %>%
 ggplot(mapping = aes(x = class, fill = class)) +  
 geom_bar() + ggtitle("Vehicle Class") + 
 theme_fivethirtyeight()
