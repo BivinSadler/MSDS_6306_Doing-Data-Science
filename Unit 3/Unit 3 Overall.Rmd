@@ -1,0 +1,401 @@
+---
+title: "Unit 3 Overall"
+author: "Bivin"
+date: "4/29/2019"
+output: html_document
+---
+
+## Missing Values
+
+```{r}
+x = NA
+is.na(x)
+
+#Dataframe for the Example
+age = c(22,21,NA,24,19,20,23)
+yrs_math_ed = c(4,5,NA,2,5,3,5)
+names = c("Mary","Martha","Rosy","Kim","Kristen","Amy","Sam")
+subject = c("English","Math",NA,"Sociology","Math","Music","Dance")
+df = data.frame(Age = age, Years = yrs_math_ed,Name = names, Major = subject)
+df
+
+is.na(df$Years)
+is.na(df$Name)
+is.na(df$Major)
+```
+
+```{r}
+library(tidyverse)
+df %>% filter(!is.na(Years)) #Filter out rows with missing Years
+
+```
+
+```{r}
+mpg %>% 
+arrange(manufacturer) %>% 
+print(n = 30)
+```
+
+```{r}
+mpg %>%
+arrange(manufacturer, cty) %>% 
+print(n = 30)
+```
+
+```{r}
+#Dataframe for the Example
+age = c(22,21,NA,24,19,20,23)
+yrs_math_ed = c(4,5,NA,2,5,3,5)
+names = c("Mary","Martha","Rosy","Kim","Kristen","Amy","Sam")
+subject = c("English","Math",NA,"Sociology","Math","Music","Dance")
+df = data.frame(Age = age, Years = yrs_math_ed,Name = names, Major = subject)
+df
+#Sort on a column with no NAs
+df %>% arrange(df$Name)
+#Sort on a column with NAs
+df %>% arrange(df$Age)
+# NA end up at the end of the list when sorted on column with NAs.
+```
+
+##Select v. Filter
+```{r}
+# chooses rows with year < 2000
+mpg %>% filter(year < 2000)
+
+#chooses the columns class, city, hwy
+mpg %>% select(class, cty, hwy)
+```
+
+### New Package GGally
+
+```{r}
+#NEW PACKAGE! Ggally
+install.packages("GGally")
+library(GGally)
+
+#chooses the columns class, city, hwy to use with ggpairs
+mpg %>% 
+select(class, cty, hwy) %>%
+ggpairs(aes(color = class))
+
+```
+
+### FIFA example
+```{r}
+install.packages("GGally")
+library(GGally)
+fifa = read.csv("/Users/bivin/Desktop/OLD COMPUTER ARCHIVES/KadAfrica/MSDS/DDS/DDS2/Datasets", header = TRUE)
+head(fifa)
+fifa %>% select(Finishing, BallControl, ShotPower) %>% ggpairs()
+
+#Finising Score v. Ball Control, v Shot Power v. Footed for all players
+fifa %>%
+filter(Preferred.Foot == "Right" | Preferred.Foot == "Left") %>% 
+select(Finishing, BallControl, ShotPower, Preferred.Foot) %>% ggpairs(aes(color = Preferred.Foot))
+
+#Right Strikers
+fifa %>%
+filter(Preferred.Foot == "Right" | Preferred.Foot == "Left" & Position == "RS") %>%
+select(Finishing, BallControl, ShotPower, Preferred.Foot) %>% ggpairs(aes(color = Preferred.Foot))
+
+#Left Strikers
+fifa %>%
+filter(Preferred.Foot == "Right" | Preferred.Foot == "Left" & Position == "LS") %>%
+select(Finishing, BallControl, ShotPower, Preferred.Foot) %>% ggpairs(aes(color = Preferred.Foot))
+```
+
+### nycflights13
+```{r}
+install.packages("nycflights13")
+library(nycflights13)
+
+```
+
+
+## group_by
+```{r}
+#class
+mpg %>% group_by(class) %>% summarize(meanCTY = mean(cty), count = n())
+
+# class and model
+mpg %>% group_by(class, model) %>% summarize(meanCTY = mean(cty), count = n())
+
+#Chapter 2 example
+mpg %>% group_by(class) %>% summarize(sum(cty))
+
+#FIFA example
+
+# With missing Position
+fifa %>% group_by(Position) %>% summarize(meanBC = mean(BallControl), count = n()) %>% print(n = 28)
+
+# With missing values in BC removed in mean call
+fifa %>% group_by(Position) %>% summarize(meanBC = mean(BallControl,na.rm = TRUE), count = n()) %>% print(n = 28)
+
+# With missing missing values removed before mean call
+fifa %>% filter(!is.na(BallControl)) %>% group_by(Position) %>% summarize(meanBC = mean(BallControl), count = n()) %>% arrange(meanBC) %>% ggplot(aes(x = Position, y = meanBC)) + geom_col()
+
+#Bar Chart to visualize ball control by position
+fifa %>% filter(!is.na(BallControl)) %>% group_by(Position) %>% summarize(meanBC = mean(BallControl), count = n()) %>% ggplot(aes(x = Position, y = meanBC)) + geom_col()
+
+#Arrange to see in order
+fifa %>% filter(!is.na(BallControl)) %>% group_by(Position) %>% summarize(meanBC = mean(BallControl), count = n()) %>% arrange(meanBC) %>% print(n=28)
+
+```
+
+## factor
+
+### Examples
+```{r}
+#Dataframe for the Example
+age = c(22,21,NA,24,19,20,23)
+yrs_math_ed = c(4,5,NA,2,5,3,5)
+names = c("Mary","Martha","Rosy","Kim","Kristen","Amy","Sam")
+subject = c("English","Math",NA,"Sociology","Math","Music","Dance")
+df = data.frame(Age = age, Years = yrs_math_ed,Name = names, Major = subject)
+df
+str(df)
+# Names and Subjects are already factors.
+
+
+#mpg Example
+
+summary(mpg$cyl)
+
+mpg %>%
+ggplot(aes(x = hwy, y = cty, color = cyl)) +
+geom_point()
+
+mpg %>%
+ggplot(aes(x = hwy, y = cty, color = as.factor(cyl))) +
+geom_point()
+
+cylFact = factor(mpg$cyl)
+cylFact
+levels(cylFact) = c("Four","Five","Six","Eight")
+cylFact
+
+cylFact = factor(mpg$cyl, labels = c("Four","Five","Six","Eight"))
+cylFact
+
+mpg %>% 
+mutate(cyl_Factor = cylFact) %>%
+ggplot(aes(x = hwy, y = cty, color = cyl_Factor)) +
+geom_point()
+
+```
+
+### FIFA example
+```{r}
+#Bar Chart to visualize ball control by position in order of meanBC
+
+#arrange (order) by meanBC
+fifa_BC = fifa %>% filter(!is.na(BallControl)) %>% group_by(Position) %>% summarize(meanBC = mean(BallControl), count = n()) %>% arrange(meanBC) %>% print(n=28)
+
+#reorder level of Postition factor
+fifa_BC$Position = factor(fifa_BC$Position, level = fifa_BC$Position[order(fifa_BC$meanBC)])
+
+# column plot of ordered results
+fifa_BC %>% ggplot(aes(x = Position, y = meanBC)) + geom_col()
+```
+
+
+### Cut Example with mpg data
+```{r}
+displ_Factor = cut(mpg$displ, breaks = c(1,4,6,8), labels = c("Low","Medium","High"))
+
+mpg %>% mutate(displ_Factor = displ_Factor) %>% ggplot(aes(x = hwy, y = cty, color = displ_Factor)) +geom_point() + ggtitle("City MPG v. Highway MPG by Displacement")
+
+```
+
+
+## Missing Values
+```{r}
+df = data.frame(x = c(1,2,3,4), y =c(3,4,5,6), z = c(1,2,3,14))
+df
+sapply(df,function(x) mean(x))
+
+#Toy Example
+# Bring in MissingValueToy.csv as ’a’
+a = read.csv(file.choose(),header = TRUE)
+# count missing values in each column
+s = sapply(a, function(x) sum(is.na(x)))
+# Make all missing values NA
+str(a)
+a$chars[6] = NA
+str(a)
+a$chars = as.character(a$chars)
+str(a)
+
+library(naniar)
+gg_miss_var(a)
+
+#Fifa
+gg_miss_var(fifa[,1:40]) + ylim(0,75)
+
+gg_miss_var(fifa[,41:89]) + ylim(0,75)
+
+#mpg
+
+gg_miss_var(mpg) + ylim(0,10)
+
+sapply(mpg, function(x) sum(is.na(x)))
+
+#nycflights13
+library(nycflights13)
+gg_miss_var(flights)
+sapply(flights, function(x) sum(is.na(x)))
+
+```
+
+##Ouliers
+```{r}
+#Find unusual city mpg values
+library(ploltly)
+p = mpg %>% 
+ggplot(aes(x = cty)) + geom_histogram()
+ggplotly(p)
+
+#Find unusual city mpg values
+library(ploltly)
+p = mpg %>% 
+ggplot(aes(y = cty,label = model)) + geom_boxplot()
+ggplotly(p)
+
+#Find unusual arrival delay values
+library(ploltly)
+p = flights %>% ggplot(aes(x = arr_delay)) + geom_histogram()
+ggplotly(p)
+
+#Find unusual arrival delay values
+library(ploltly)
+p = flights %>% 
+ggplot(aes(y = arr_delay)) + geom_boxplot()
+ggplotly(p)
+
+
+
+# Diamonds
+
+#Find unusual carat values
+library(plotly)
+p = diamonds %>% ggplot(aes(x = carat)) + geom_histogram()
+ggplotly(p)
+
+#Find unusual y values
+p = diamonds %>% ggplot(aes(x = y)) + geom_histogram()
+ggplotly(p)
+
+#Check if they are Potentially Errors or just Outliers. 
+diamonds %>% 
+mutate(priceFact = cut(price, breaks = c(0,2000,10000,15000, 19000), labels = c("Low","Medium", "High", "Very High"))) %>% 
+ggplot(aes(x = carat, fill = priceFact)) + 
+geom_histogram()
+
+```
+
+
+## Covariation
+```{r}
+mpg %>% 
+ggplot(aes(y = cty, color = class)) + 
+geom_boxplot()
+
+mpg %>% 
+ggplot(aes(x = cty, color = class)) + 
+geom_histogram() + 
+facet_grid(rows = vars(class))
+
+diamonds %>% 
+mutate(priceFact = cut(price, breaks = c(0,2000,10000,15000, 19000), labels = c("Low","Medium", "High", "Very High"))) %>% 
+ggplot(aes(x = carat, fill = priceFact)) + 
+geom_histogram() + ylim(c(0,200)) + 
+facet_wrap(vars(priceFact))
+
+p = diamonds %>% 
+count(color,cut) %>% 
+ggplot(aes(x = color, y = cut)) + 
+geom_tile(mapping = aes(fill = n))
+ggplotly(p)
+
+
+p = fifa %>% 
+filter(!is.na(BallControl)) %>% 
+mutate(BallControlFact = cut(BallControl, breaks = c(0,30,60,90,100), labels = c("Very Low", "Low", "Medium", "High"))) %>% 
+count(Position, BallControlFact) %>% 
+ggplot(aes(x = Position, BallControlFact)) + geom_tile(mapping = aes(fill = n))
+ggplotly(p)
+
+
+mpg %>% ggplot(aes(x = hwy, y = cty)) + 
+geom_point(color = "blue")
+#note that color is not in an ”aes”
+# function we are setting them manually.
+
+
+flights %>% 
+ggplot(aes(x = dep_delay, y = arr_delay)) + 
+geom_boxplot(mapping = aes(group = cut_width(dep_delay,50)))+ 
+xlim(c(0,700))
+
+mpg %>% ggplot(aes(x = displ, y = cty)) + 
+geom_point(color = class)
+
+mpg %>% 
+select(displ, hwy, class) %>% 
+ggpairs(aes(color = class))
+
+```
+
+## Example Diamond Data
+```{r}
+diamonds %>%
+select(price, carat, cut) %>%
+ggpairs(mapping = aes(color = cut))
+
+diamonds %>% 
+group_by(cut) %>% 
+summarize(median = median(price))
+
+diamonds %>% 
+group_by(cut) %>% 
+summarize(median = median(carat))
+
+diamonds %>%
+ggplot(aes(x = carat, y = price)) + 
+geom_point()
+
+diamonds %>% 
+mutate(lcarat = log(carat), lprice = log(price)) %>%
+ggplot(aes(x = lcarat, y = lprice)) + 
+geom_point()
+
+diamonds %>% 
+mutate(lcarat = log(carat), lprice = log(price)) %>%
+ggplot(aes(x = lcarat, y = lprice)) + 
+geom_point() + 
+geom_smooth(method = "lm") + 
+ylim(c(5.5, 10))
+
+diamonds %>%
+mutate(resids = exp(fit$residuals)) %>%
+ggplot(aes(x = carat, y = resids)) + 
+geom_point()
+
+diamonds %>%
+mutate(resids = exp(fit$residuals)) %>%
+ggplot(aes(x = carat, y = resids, color = cut)) + 
+geom_point()
+
+diamonds %>% 
+mutate(resids = exp(fit$residuals)) %>%
+ggplot(aes(y = resids, color = cut)) +
+geom_boxplot()
+
+diamonds %>% 
+mutate(resids = exp(fit$residuals)) %>%
+group_by(cut) %>% 
+summarise(median = median(resids))
+
+```
+
+
