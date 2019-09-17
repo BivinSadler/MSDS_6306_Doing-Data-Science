@@ -1,0 +1,40 @@
+---
+title: "Unit 3 For Live Session R Code"
+output: html_document
+---
+
+
+# Load Required Packages
+```{r}
+install.packages("tidyverse")
+library(tidyverse)
+install.packages("GGally")
+library(GGally)
+```
+
+# Wrangle Data: Filter to get only LM and LF and get the Position factor to have 2 levels
+```{r}
+FIFA = read.csv(file.choose(), header = TRUE)
+FIFA2 = FIFA %>% filter(Position == "LM" | Position == "LF")
+FIFA2$Position = as.factor(as.character(FIFA2$Position))
+```
+
+# Plot matrix of only variables of interest
+```{r}
+FIFA2 %>% select(Acceleration, Agility, Position) %>% ggpairs(aes(color = Position))
+```
+
+# Perform T Test
+```{r}
+t.test(Agility~Position, data = FIFA2)
+```
+
+# Check assumptions with histograms 
+```{r}
+summary(FIFA2$Position)
+FIFA2 %>% ggplot(aes(x = Agility, color = Position, fill = Position)) + geom_histogram(bins = 9) + facet_wrap(~Position)
+FIFA2 %>% filter(Position == "LF") %>% ggplot(aes(x = Agility, color = Position, fill = Position)) + geom_histogram(bins = 9)
+```
+
+
+
