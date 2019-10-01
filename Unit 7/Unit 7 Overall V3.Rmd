@@ -1,0 +1,488 @@
+---
+title: "Unit 7 Overall"
+author: "Bivin"
+date: "5/1/2019"
+output: html_document
+---
+
+#Volleyball Example
+```{r}
+vball = read.csv(file.choose(),header = TRUE)
+vball
+
+install.packages("e1071") #naiveBayes()
+library(e1071)
+
+model = naiveBayes(Volleyball~.,data = vball)
+predict(model,vball[,c(1,2)])
+
+df = data.frame(Outlook = "Rain", Wind = "Hi")
+predict(model,df) #just classifications
+predict(model,df, type = "raw") #gives probabilities 
+
+```
+
+
+#NYT Example
+```{r NYT}
+######################
+
+# Loading the Data from the NYT API
+
+# We will load from "Data+Science" and "Trump" searches.
+
+# Data+Science Search
+# term <- "Data+Science" # Need to use + to string together separate words
+# begin_date <- "20180901"
+# end_date <- "20190502"
+
+# Trump Search
+# term <- "Trump" # Need to use + to string together separate words
+# begin_date <- "20190415"
+# end_date <- "20190502"
+
+######################
+
+#NYT Example
+
+library(tm) #text mining library provides the stopwords() function
+library(tidyr)
+library(plyr)
+library(jsonlite)
+library(dplyr)
+library(tidyverse)
+
+NYTIMES_KEY = "OG89fUubcS8FXofVrLA4dmIOHh5omiFa" #Your Key Here … get from NTY API website
+
+# Let's set some parameters
+term <- "Central+Park+Jogger" # Need to use + to string together separate words
+begin_date <- "19900419"
+end_date <- "19900619"
+
+baseurl <- paste0("http://api.nytimes.com/svc/search/v2/articlesearch.json?q=",term,
+                  "&begin_date=",begin_date,"&end_date=",end_date,
+                  "&facet_filter=true&api-key=",NYTIMES_KEY, sep="")
+
+baseurl
+
+initialQuery <- jsonlite::fromJSON(baseurl)
+maxPages <- round((initialQuery$response$meta$hits[1] / 10)-1)
+maxPages
+
+pages <- list()
+for(i in 0:maxPages){
+  nytSearch <- jsonlite::fromJSON(paste0(baseurl, "&page=", i), flatten = TRUE) %>% data.frame() 
+  message("Retrieving page ", i)
+  pages[[i+1]] <- nytSearch 
+  Sys.sleep(7) 
+}
+
+allNYTSearch <- rbind_pages(pages)
+
+
+#Segmentation
+
+# Visualize coverage by section
+allNYTSearch %>% 
+  group_by(response.docs.type_of_material) %>%
+  dplyr::summarize(count=n()) %>%
+  mutate(percent = (count / sum(count))*100) %>%
+  ggplot() +
+  geom_bar(aes(y=percent, x=response.docs.type_of_material, fill=response.docs.type_of_material), stat = "identity") + coord_flip()
+
+#Make another column of News versus Other ... The labels
+
+allNYTSearch$NewsOrOther = ifelse(allNYTSearch$response.docs.type_of_material == "News","News","Other")
+#There is an NA in NewsOrOther
+
+# Visualize coverage of News or Other
+allNYTSearch[!is.na(allNYTSearch$NewsOrOther),] %>% 
+  group_by(NewsOrOther) %>%
+  dplyr::summarize(count=n()) %>%
+  mutate(percent = (count / sum(count))*100) %>%
+  ggplot() +
+  geom_bar(aes(y=percent, x=NewsOrOther, fill=NewsOrOther), stat = "identity") + coord_flip()
+
+
+
+#Train and Test Split 70%/30%
+
+set.seed(2)
+trainInd = sample(seq(1,dim(allNYTSearch)[1],1),round(.7*dim(allNYTSearch)[1]))
+allNYTSearchTrain = allNYTSearch[trainInd,]
+allNYTSearchTest = allNYTSearch[-trainInd,]
+
+
+#This function returns P(News | Keyword) 
+#P(News|KW) = P(KW|News)* P(News) / P(KW)
+Pnews_word = function(key_word, trainingSet, alphaLaplace = 1, betaLaplace = 1) # alpha and beta are for laplace smoothing
+{
+  trainingSet$response.docs.headline.main = unlist(str_replace_all(trainingSet$response.docs.headline.main,"[^[:alnum:] ]", "")) #Take out all but alpha numeric characters from training headlines
+  
+  #print(key_word)
+  NewsGroup = trainingSet[trainingSet$NewsOrOther == "News",]
+  OtherGroup = trainingSet[trainingSet$NewsOrOther == "Other",]
+  
+  pNews = dim(NewsGroup)[1] / (dim(NewsGroup)[1] + dim(OtherGroup)[1])
+  pOther = 1 - pNews
+  
+  pKWGivenNews = (length(str_which(NewsGroup$response.docs.headline.main,regex(str_c("\\b",key_word,"\\b",sep=""),ignore.case = TRUE)))+alphaLaplace)/(dim(NewsGroup)[1]+betaLaplace)
+  pKWGivenOther = (length(str_which(OtherGroup$response.docs.headline.main,regex(str_c("\\b",key_word,"\\b",sep=""),ignore.case = TRUE)))+alphaLaplace)/(dim(OtherGroup)[1]+betaLaplace)
+  
+  pKW = length(str_which(trainingSet$response.docs.headline.main,regex(str_c("\\b",key_word,"\\b",sep=""),ignore.case = TRUE)))/dim(trainingSet)[1]
+  
+  pNewsGivenKW = pKWGivenNews*pNews/pKW
+  pOtherGivenKW = pKWGivenOther*pOther/pKW
+  
+  return(pNewsGivenKW)
+}
+
+theScoreHolderNews = c()
+theScoreHolderOther = c()
+articleScoreNews = 0;
+articleScoreOther = 0;
+
+
+for (i in 1 : dim(allNYTSearchTest)[1])  #This loop iterates over the articles in the Test Set
+{
+  
+  articleScoreNews = 1; 
+  articleScoreOther = 1;
+
+#The [^[:alnum:] ] replaces all non alphanumeric characters with nulls.  
+theText = unlist(str_split(str_replace_all(allNYTSearchTest[i,]$response.docs.headline.main,"[^[:alnum:] ]", ""), stringr::boundary("word"))) #Take out all but alpha numeric characters from search string ... theText holds each word in the headline as its own word.  
+
+# stopwords() #from package tm
+wordsToTakeOut = stopwords()
+
+# put word boundaries stopwords so that we don't detect partial words later
+wordsToTakeOut = str_c(wordsToTakeOut,collapse = "\\b|\\b") 
+wordsToTakeOut = str_c("\\b",wordsToTakeOut,"\\b")
+#wordsToTakeOut
+
+importantWords = theText[!str_detect(theText,regex(wordsToTakeOut,ignore_case = TRUE))]
+
+#importantWords
+
+  for(j in 1 : length(importantWords))  #This loop iterates over the important words in the headline
+  {
+    articleScoreNews = articleScoreNews * Pnews_word(importantWords[j],allNYTSearchTrain)
+    articleScoreOther = articleScoreOther * (1 - Pnews_word(importantWords[j],allNYTSearchTrain))
+  }
+  theScoreHolderNews[i] = articleScoreNews
+  theScoreHolderOther[i] = articleScoreOther
+}
+
+# Classify the aricle as News or Other based on a given piece of information from the article.
+allNYTSearchTest$Classified = ifelse(theScoreHolderNews > theScoreHolderOther,"News","Other")
+
+#Confusion Matrix
+table(allNYTSearchTest$Classified,allNYTSearchTest$NewsOrOther) #Actual in Columns
+confusionMatrix(factor(allNYTSearchTest$Classified),factor(allNYTSearchTest$NewsOrOther))
+
+```
+
+
+#Continuous Predictors
+```{r}
+#univariate density plots
+library(mvtnorm)
+#Height Female
+x = seq(50,90,.1)
+y = dnorm(x,66,2)
+df = data.frame(x = x, y = y)
+df %>% ggplot(aes(x = x, y = y)) + geom_line() + xlab("B") + ylab("Probability Density") + ggtitle("Probability Density of Height of Women")
+
+#Height Male
+x = seq(50,90,.1)
+y = dnorm(x,70,3)
+df = data.frame(x = x, y = y)
+df %>% ggplot(aes(x = x, y = y)) + geom_line() + xlab("B") + ylab("Probability Density") + ggtitle("Probability Density of Height of Men")
+
+# Weight Female
+x = seq(100,180,.1)
+y = dnorm(x,130,9)
+df = data.frame(x = x, y = y)
+df %>% ggplot(aes(x = x, y = y)) + geom_line() + xlab("B") + ylab("Probability Density") + ggtitle("Probability Density of Weight of Women")
+
+# Weight Male
+x = seq(100,180,.1)
+y = dnorm(x,150,10)
+df = data.frame(x = x, y = y)
+df %>% ggplot(aes(x = x, y = y)) + geom_line() + xlab("B") + ylab("Probability Density") + ggtitle("Probability Density of Weight of Men")
+
+# Weight Male
+x = seq(100,180,.1)
+y = dnorm(x,150,10)
+df = data.frame(x = x, y = y)
+df %>% ggplot(aes(x = x, y = y)) + geom_line() + xlab("B") + ylab("Probability Density") + ggtitle("Probability Density of Weight of Men")
+
+# Making bivariate plots
+set.seed(34)
+males = rmvnorm(10,mean = c(70,150), sigma = matrix(c(9,0,0,100),ncol = 2))
+females = rmvnorm(10,mean = c(66,130), sigma = matrix(c(4,0,0,81),ncol = 2))
+dfMF = data.frame(height = c(males[,1],females[,1]), weight = c(males[,2],females[,2]), MorF = c(rep("M",10),rep("F",10)))
+dfMF %>% ggplot(aes(x = height, y = weight, color = MorF)) + geom_point() + stat_ellipse(level = c(.95)) + stat_ellipse(level = .90) + stat_ellipse(level = .70) + stat_ellipse(level = .40) + stat_ellipse(level = .10)
+
+#get sample means and sds from sample to use in calculations
+#rows 1-10 are male and 11-20 are female
+# column 1 is height and column 2 is weight and column 3 is male/female factor
+mean(dfMF[1:10,1])
+mean(dfMF[11:20,1])
+mean(dfMF[1:10,2])
+mean(dfMF[11:20,2])
+sd(dfMF[1:10,1])
+sd(dfMF[11:20,1])
+sd(dfMF[1:10,2])
+sd(dfMF[11:20,2])
+dnorm(68,69.57463,2.405437)
+dnorm(68,69.57463,2.405437)*dnorm(135,151.6851,8.276395)*.5/(dnorm(68,69.57463,2.405437)*dnorm(135,151.6851,8.276395)*.5 + dnorm(68,65.13555,1.548547)*dnorm(135,132.9786,10.11479)*.5)
+
+```
+
+
+# naiveBayes()
+```{r}
+model = naiveBayes(dfMF[,c(1,2)],dfMF$MorF)
+predict(model,data.frame(height = 68, weight = 135))
+predict(model,data.frame(height = 68, weight = 135), type = "raw")
+```
+
+
+# Continuous Predictor Example: IRIS
+```{r}
+
+# Loop for average of many training / test partition
+library(caret)
+irisVersVirg = iris %>% filter(Species == "versicolor" | Species == "virginica")
+irisVersVirg = droplevels(irisVersVirg,exclude = "setosa")
+summary(irisVersVirg)
+
+iterations = 100
+
+masterAcc = matrix(nrow = iterations)
+
+splitPerc = .7 #Training / Test split Percentage
+
+for(j in 1:iterations)
+{
+  
+  trainIndices = sample(1:dim(irisVersVirg)[1],round(splitPerc * dim(irisVersVirg)[1]))
+  train = irisVersVirg[trainIndices,]
+  test = irisVersVirg[-trainIndices,]
+  
+  model = naiveBayes(train[,c(1,2)],train$Species)
+  table(predict(model,test[,c(1,2)]),test$Species)
+  CM = confusionMatrix(table(predict(model,test[,c(1,2)]),test$Species))
+  masterAcc[j] = CM$overall[1]
+}
+
+MeanAcc = colMeans(masterAcc)
+
+MeanAcc
+
+```
+
+
+
+```{r}
+# KNN Loop for average of many training / test partition wiht mpg$drv data
+# Loop for many k and the average of many training / test partition
+library(class)
+library(caret)
+set.seed(1)
+splitPerc = .7
+iterations = 100
+numks = 60
+masterAcc = matrix(nrow = iterations, ncol = numks)
+  
+for(j in 1:iterations)
+{
+accs = data.frame(accuracy = numeric(60), k = numeric(60))
+trainIndices = sample(1:dim(mpg)[1],round(splitPerc * dim(mpg)[1]))
+train = mpg[trainIndices,]
+test = mpg[-trainIndices,]
+for(i in 1:numks)
+{
+  classifications = knn(train[,c(8,9)],test[,c(8,9)],as.factor(train$drv), prob = TRUE, k = i)
+  table(as.factor(test$drv),classifications)
+  CM = confusionMatrix(table(as.factor(test$drv),classifications))
+  masterAcc[j,i] = CM$overall[1]
+}
+
+}
+
+MeanAcc = colMeans(masterAcc)
+
+plot(seq(1,numks,1),MeanAcc, type = "l")
+which.max(MeanAcc)
+max(MeanAcc)
+
+
+```
+
+
+
+
+
+
+
+
+
+# NB with Multinomial Response / iris$Species and mpg$drv
+```{r}
+
+# Demo the multinomial NB classifier
+
+# iris
+
+
+library(e1071)
+
+model = naiveBayes(iris[,c(1,2)],iris$Species,laplace = 1)
+
+table(predict(model,iris[,c(1,2)]),iris$Species)
+
+CM = confusionMatrix(table(predict(model,iris[,c(1,2)]),iris$Species))
+
+CM
+
+
+
+# NB Loop for average of many training / test partition
+
+iterations = 100
+
+masterAcc = matrix(nrow = iterations)
+
+splitPerc = .7 #Training / Test split Percentage
+
+for(j in 1:iterations)
+{
+  
+  trainIndices = sample(1:dim(iris)[1],round(splitPerc * dim(iris)[1]))
+  train = iris[trainIndices,]
+  test = iris[-trainIndices,]
+  
+  model = naiveBayes(train[,c(1,2)],as.factor(train$Species),laplace = 1)
+  table(predict(model,test[,c(1,2)]),as.factor(test$Species))
+  CM = confusionMatrix(table(predict(model,test[,c(1,2)]),as.factor(test$Species)))
+  masterAcc[j] = CM$overall[1]
+}
+
+MeanAcc = colMeans(masterAcc)
+
+MeanAcc
+
+
+
+
+
+
+
+
+
+
+
+# NB Loop for average of many training / test partition
+
+iterations = 500
+
+masterAcc = matrix(nrow = iterations)
+
+splitPerc = .7 #Training / Test split Percentage
+
+for(j in 1:iterations)
+{
+  
+  trainIndices = sample(1:dim(mpg)[1],round(splitPerc * dim(mpg)[1]))
+  train = mpg[trainIndices,]
+  test = mpg[-trainIndices,]
+  
+  model = naiveBayes(train[,c(8,9)],as.factor(train$drv),laplace = 1)
+  table(predict(model,test[,c(8,9)]),as.factor(test$drv))
+  CM = confusionMatrix(table(predict(model,test[,c(8,9)]),as.factor(test$drv)))
+  masterAcc[j] = CM$overall[1]
+}
+
+MeanAcc = colMeans(masterAcc)
+
+MeanAcc
+
+
+
+
+
+
+# mpg$drv
+
+model = naiveBayes(mpg[,c(8,9)],as.factor(mpg$drv),laplace = 1)
+
+table(predict(model,mpg[,c(8,9)]),as.factor(mpg$drv))
+
+CM = confusionMatrix(table(predict(model,mpg[,c(8,9)]),as.factor(mpg$drv)))
+
+CM
+```
+
+# NB with Multinomial Response / mpg$cyl
+```{r}
+
+# KNN Loop for average of many training / test partition
+
+# Loop for many k and the average of many training / test partition
+set.seed(1)
+splitPerc = .7
+iterations = 500
+numks = 60
+masterAcc = matrix(nrow = iterations, ncol = numks)
+  
+for(j in 1:iterations)
+{
+accs = data.frame(accuracy = numeric(60), k = numeric(60))
+trainIndices = sample(1:dim(mpg)[1],round(splitPerc * dim(mpg)[1]))
+train = mpg[trainIndices,]
+test = mpg[-trainIndices,]
+for(i in 1:numks)
+{
+  classifications = knn(train[,c(8,9)],test[,c(8,9)],as.factor(train$cyl), prob = TRUE, k = i)
+  table(as.factor(test$cyl),classifications)
+  CM = confusionMatrix(table(as.factor(test$cyl),classifications))
+  masterAcc[j,i] = CM$overall[1]
+}
+
+}
+
+MeanAcc = colMeans(masterAcc)
+
+plot(seq(1,numks,1),MeanAcc, type = "l")
+which.max(MeanAcc)
+max(MeanAcc)
+
+
+
+# NB Loop for average of many training / test partition
+
+iterations = 500
+
+masterAcc = matrix(nrow = iterations)
+
+splitPerc = .7 #Training / Test split Percentage
+
+for(j in 1:iterations)
+{
+  
+  trainIndices = sample(1:dim(mpg)[1],round(splitPerc * dim(mpg)[1]))
+  train = mpg[trainIndices,]
+  test = mpg[-trainIndices,]
+  
+  model = naiveBayes(train[,c(8,9)],as.factor(train$cyl),laplace = 1)
+  table(predict(model,test[,c(8,9)]),as.factor(test$cyl))
+  CM = confusionMatrix(table(predict(model,test[,c(8,9)]),as.factor(test$cyl)))
+  masterAcc[j] = CM$overall[1]
+}
+
+MeanAcc = colMeans(masterAcc)
+
+MeanAcc
+```
