@@ -1,0 +1,290 @@
+---
+title: "Unit 4 Overall"
+author: "Bivin"
+date: "5/1/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Example 1a
+```{r}
+olddata_wide <- read.table(header=TRUE, text='
+subject genderage Control Treatment1 Treatment2
+                           1   32_M     7.9  12.3  10.7
+                           2   45_F     6.3  10.6  11.1
+                           3   27_F     9.5  13.1  13.8
+                           4   23_M    11.5  13.4  12.9
+                           ')
+olddata_wide$subject <- factor(olddata_wide$subject)
+
+olddata_wide
+
+#Change to Long
+data_long <- gather(olddata_wide, condition, measurement, Control:Treatment2, factor_key=TRUE)
+data_long = data_long %>% separate(genderage, into = c("age","gender"))
+data_long
+str(data_long)
+data_long$age = as.numeric(data_long$age)
+str(data_long)
+
+#Change to Wide
+data_wide <- spread(data_long, condition, measurement)
+data_wide
+```
+
+#Example 1b
+```{r}
+demographic <- read.table(header=TRUE, text='
+                           subject age gender  condition 
+                                  1     32   M    Control   
+                                  2     45   F    Control     
+                                  3     27   F    Control    
+                                  4     23   M    Control       
+                                  1     32   M Treatment1     
+                                  2     45   F Treatment1       
+                                  3     27   F Treatment1       
+                                  4     23   M Treatment1       
+                                  1     32   M Treatment2      
+                                  2     45   F Treatment2      
+                                  3     27   F Treatment2      
+                                  4     23   M Treatment2
+                           ')
+demographic$subject <- factor(demographic$subject)
+
+demographic
+
+
+experimentData <- read.table(header=TRUE, text='
+                         subject   condition measurement
+                             1         Control         7.9
+                             2         Control         6.3
+                             3         Control         9.5
+                             4         Control        11.5
+                             1      Treatment1        12.3
+                             2      Treatment1        10.6
+                             3      Treatment1        13.1
+                             4      Treatment1        13.4
+                             1      Treatment2        10.7
+                             2      Treatment2        11.1
+                             3      Treatment2        13.8
+                             4      Treatment2        12.9
+                           ')
+experimentData$subject <- factor(experimentData$subject)
+
+experimentData
+
+fullData = merge(demographic,experimentData,c("subject","condition"))
+fullData
+```
+
+## When could it matter?
+```{r}
+
+#plotting
+data_long %>% ggplot(aes(x = age, y = measurement, color = condition )) + geom_point()
+
+#grouping
+data_long %>% group_by(condition) %>% summarize(meanAge = mean(as.numeric(age)))
+
+#filtering
+data_long %>% filter(condition = "Control") %>% ggplot(aes(x = age, y = measurement)) + geom_point()
+
+
+
+
+
+
+
+
+
+cor(data_wide$age, data_wide$Control)
+d = data_long %>% filter(condition == "Control")
+cor(d$age, d$measurement)
+
+#t test wide
+t.test(data_wide$Control, data_wide$Treatment1)
+
+# t test long
+d = data_long %>% filter(condition == "Control" | condition == "Treatment1")
+t.test(measurement~condition, data = d)
+
+#plotting
+
+#Plotting with wide data
+par(mfrow = c(1,3))
+plot(data_wide$age, data_wide$Control,xlab = "Age", ylab = "Measurement", main = "Control v. Age")
+plot(data_wide$age, data_wide$Treatment1,xlab = "Age", ylab = "Measurement", main = "Treatment1 v. Age")
+plot(data_wide$age, data_wide$Treatment2,xlab = "Age", ylab = "Measurement", main = "Treatment2 v. Age")
+
+
+#Plotting with long data and ggplot2
+data_long %>% ggplot(aes(x = age, y = measurement)) + geom_point() + facet_wrap(~condition) + ggtitle("Age v. Measurement v. Condition")
+
+data_long %>% ggplot(aes(x = age, y = measurement, color = condition)) + geom_point()+ ggtitle("Age v. Measurement v. Condition")
+
+data_long %>% ggplot(aes(x = age, y = measurement, color = condition)) + geom_point() + facet_wrap(~condition)+ ggtitle("Age v. Measurement v. Condition")
+
+
+```
+
+## Missing Data
+```{r}
+df = data.frame(year = c(2018,2018,2018,2018, 2019,2019,2019, 2019,2020,2020,2020), 
+quarter = c(1,2,3,4,1,2,3,4,2,3,4), 
+price = c(4.55,NA, 6.75, 8.2, 8.5, 9.6, 10.1, 11.0, 12.1, 13.1, 15.9),
+char = c("Sunny","Roger",NA,"NA","Sunny","Roger",NA,"NA","Sunny","Roger",NA))
+df %>% complete(year, quarter) #all possible combinations of year and quarter for the levels observed.
+df %>% spread(year,price) #change to wide
+```
+
+#WHO Example
+```{r}
+who1 <- who %>% 
+  gather(new_sp_m014:newrel_f65, key = "key", value = "cases", na.rm = TRUE)
+who1
+
+who2 <- who1 %>% 
+  mutate(key = stringr::str_replace(key, "newrel", "new_rel"))
+who2
+
+who3 <- who2 %>% 
+  separate(key, c("new", "type", "sexage"), sep = "_")
+who3
+
+who3 %>% 
+  count(new)
+
+who4 <- who3 %>% 
+  select(-new, -iso2, -iso3)
+
+who5 <- who4 %>% 
+  separate(sexage, c("sex", "age"), sep = 1)
+who5
+
+who %>%
+  gather(key, value, new_sp_m014:newrel_f65, na.rm = TRUE) %>% 
+  mutate(key = stringr::str_replace(key, "newrel", "new_rel")) %>%
+  separate(key, c("new", "var", "sexage")) %>% 
+  select(-new, -iso2, -iso3) %>% 
+  separate(sexage, c("sex", "age"), sep = 1)
+```
+
+# API Codes
+```{r}
+#Unit 4 API R Code
+
+
+#Intrinio
+
+# Andrew Carpenter helpful link: http://old.r-fiddle.org/#/fiddle?id=n1shL0IB&version=1
+#Show access through URL: https://api-v2.intrinio.com/companies/AAPL?api_key=OmIxMWI5NWY3MzM0ZjdmN2U3ODJlOTBhNmU3OGQ0Zjlk
+
+library(httr)
+library(jsonlite)
+
+username = "cc092ea39fffe74b69f12976f4bfcd22"
+password = "7a8adcf931edb0766ff36fbb0b5cc421"
+
+base <- "https://api.intrinio.com/"
+endpoint <- "prices"
+stock <- "AAPL"
+
+call1 <- paste(base,endpoint,"?","ticker","=", stock, sep="")
+
+call1
+
+get_prices <- GET(call1, authenticate(username,password, type = "basic"))
+
+get_prices_text <- content(get_prices, "text")
+
+get_prices_json <- jsonlite::fromJSON(get_prices_text, flatten = TRUE)
+
+get_prices_df <- as.data.frame(get_prices_json$data)
+
+get_prices_df$date = as.Date(get_prices_df$date)
+
+par(mfrow = c(2,1))
+
+get_prices_df %>% ggplot(aes(x = date, y = adj_close))+ geom_line() + ggtitle("Adjusted Close")
+get_prices_df %>% ggplot(aes(x = date, y = adj_volume))+ geom_col() + ggtitle("Adjusted Volume")
+
+
+
+#twitteR
+
+api_key = "rkclWXRZYkZYZbdVdcvzP2ZcN "
+api_secret = "ymjMYAkXhXVAL2ci4vTKi3ZFKg72abSKlzBNZq0y6rkXXltsdY"
+access_token = "1105487041691815937-IIPDKMmlfGIuRvJgrRfCgiRLtQAfII"
+access_token_secret = "mafeLvPRrI8SKBvyq4SJVozfx2wDD0rRkOrASfCoRJUyy"
+
+#Load twitteR
+library(twitteR)
+setup_twitter_oauth(api_key,api_secret,access_token,access_token_secret)
+  
+#Get tweets
+tweets = searchTwitter("$appl", n = 10, lang = "en")
+
+#Locations 
+trend = availableTrendLocations()
+
+#Get Trends for Location
+getTrends(395269) # Caracas, Venezuela
+
+getTrends(2487889) # San Diego, California
+
+getTrends(44418) #  London, England
+
+getTrends(2388929) #  Dallas, US
+
+DallasTrends = getTrends(2388929) %>% select(name) #  Dallas, US
+
+DallasTrends[1:10,]
+
+
+
+# World Bank Development Indicators
+
+#Useful URL in explainging WDI XML and JSON data formats.
+#https://datahelpdesk.worldbank.org/knowledgebase/articles/898599-indicator-api-queries
+
+#Goal 1: Create a bar chart of topics relating to gdp.
+
+#search for reports with "gdp" in the description
+results = as.data.frame(WDIsearch("gdp"))
+
+#Many reports have more than 4 parts of the indicator
+# This is in contrast to this documentation: 
+#https://datahelpdesk.worldbank.org/knowledgebase/articles/201175-how-does-the-world-bank-code-its-indicators
+# We use a new function from a new package that we will cover later: str_count
+# This function is in the stringr package and simply counts the number of a specific 
+# character ("\\.") in a given string (indicator)
+# The \\ means to literally look for the '.' which means something else in this context.
+#This line will filter the data frame to leave only those with 4 pieces in the indicator.
+resultsGoodIndicator = results %>% filter(str_count(indicator,"\\.")==3)
+
+#Check out the new data frame with only 4 piece indicators
+resultsGoodIndicator$indicator
+
+# Break the indicator code up into 4 distinct columns. 
+resultsGoodIndicator = as.data.frame(resultsGoodIndicator) %>% separate(indicator,c("topic","general","specific","extension"))
+
+#plot the topic column in a bar chart to see the frequency of each topic.
+#compare the expenditure (NE) and the income (NY)
+resultsGoodIndicator %>% ggplot(aes(x = topic, fill = topic)) + geom_bar()
+
+
+
+#Goal 2: Plot GDP (NY and GDP) per capita (PCAP) of Mexico, Canada and the US in constant US dollars (KD)
+
+dat = WDI(indicator='NY.GDP.PCAP.KD', country=c('MX','CA','US'), start=1960, end=2012)
+
+head(dat)
+
+library(ggplot2)
+ggplot(dat, aes(x = year, y = NY.GDP.PCAP.KD, color=country)) + geom_line() + 
+  xlab('Year') + ylab('GDP per capita')
+
+```

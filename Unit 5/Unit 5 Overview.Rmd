@@ -1,0 +1,596 @@
+---
+title: "Unit 5 Overall"
+author: "Bivin"
+date: "5/2/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+# Merging and Joins
+```{r}
+df1 = data.frame(Student_ID = c("1234", "2345", "8910", "9101", "3456", "5678","8888"), Course = c("Time Series", "NLP", "Stats1", "DDS", "DDS", "ML2","Data Mining"))
+df2 = data.frame(Student_ID = c("1234", "2345", "8910", "9101", "3456", "5678","99999", "11111"), Gender = c("M", "F", "M", "F", "F", "F", "M", "M"), State = c("TX", "TX", "CA", "ID", "NY", "FL","NM", "AZ") )
+
+#inner join
+merge(df1,df2, by = "Student_ID")
+#or
+inner_join(df1,df2,by = "Student_ID")
+#or
+df1 %>% inner_join(df2,by = "Student_ID")
+
+
+#outer join
+merge(df1,df2, by = "Student_ID",all = TRUE)
+#or
+full_join(df1,df2,by = "Student_ID")
+#or
+df1 %>% full_join(df2,by = "Student_ID")
+
+
+#left join
+merge(df1,df2, by = "Student_ID",all.x = TRUE)
+left_join(df1,df2, by = "Student_ID")
+
+
+#right join 
+merge(df1,df2, by = "Student_ID",all.y = TRUE)
+right_join(df1,df2, by = "Student_ID")
+
+
+#Different Column Names: by.x and by.y
+df3 = data.frame(Student_ID_Number = c("1234", "2345", "8910", "9101", "3456", "5678", "8888"), Course = c("Time Series", "NLP", "Stats1", "DDS", "DDS", "ML2", "Data Mining"))
+df4 = data.frame(Student_ID = c("1234", "2345", "8910", "9101", "3456", "5678","99999", "11111"), Gender = c("M", "F", "M", "F", "F", "F", "M", "M"), State = c("TX", "TX", "CA", "ID", "NY", "FL","NM", "AZ") )
+
+merge(df3,df4, by.x = "Student_ID_Number", by.y = "Student_ID")
+```
+
+
+
+
+
+#Headmap from AcuSpike
+```{r}
+#Data clean and heat map for Acuspikes 
+# Data has been read into a Dataframe called "Acu"
+
+library(ggplot2)
+library(maps)
+library(dplyr)
+library(mapproj)
+
+Acu = read.csv(file.choose(),header = TRUE) # read in company data
+lookup = data.frame(abb = state.abb, State = state.name) #makes a data frame with State name and abbreviation. 
+colnames(Acu)[2] = "abb" # Change Column Name
+Acu2 = merge(Acu,lookup,"abb") # make one dataset with state names and abb
+AcuMapData = count(Acu2,State) #count up the occurance of each state. 
+#AcuMapData = AcuMapData[-c(5,9,43),] #Shows contrast between other states better
+colnames(AcuMapData)[2] = "AcuSpikes" #change "n" to "Acuspikes"
+AcuMapData$region <- tolower(AcuMapData$State)
+AcuMapData2 = AcuMapData[-1]
+states <- map_data("state")
+map.df <- merge(states,AcuMapData2, by="region", all.x=T)
+map.df <- map.df[order(map.df$order),]
+ggplot(map.df, aes(x=long,y=lat,group=group))+
+  geom_polygon(aes(fill=AcuSpikes))+
+  geom_path()+ 
+  scale_fill_gradientn(colours=rev(heat.colors(10)),na.value="grey90")+ggtitle("Acuspike Systems by State")+
+coord_map()
+```
+
+
+# WDI and WHO: GDP Per Capita Versus Life Expectancy
+## Indicator API Queries:  
+https://datahelpdesk.worldbank.org/knowledgebase/articles/898599-indicator-api-queries  
+See the csv of Indicators as well.  
+```{r}
+install.packages("countrycode")
+library(countrycode)
+countrycode("Albania", 'country.name', 'iso2c') 
+countrycode("Germany", 'country.name', 'iso2c') 
+countrycode("United States", 'country.name', 'iso2c') 
+countrycode("Canada", 'country.name', 'iso2c') 
+
+
+library(WDI)
+#GDP ("NY.GDP"), Per capita ("PCAP"), in US Currency (KD)
+GDPPC = WDI(indicator="NY.GDP.PCAP.KD", start=2015, end=2015)
+head(GDPPC)
+
+library(WHO)
+codes <- get_codes()
+str(codes)
+dim(codes)
+names(codes)
+grep("life expect",codes$display)
+#str_which(codes$display,"life expect")
+# another way instead of grep
+#which(str_detect(codes$display,"life expect"))
+codes$display[58]
+codes$display[2187]
+codes$label[58]
+codes[58,]
+#58th codes has label "WHOSIS_000002"
+LE = get_data("WHOSIS_000002")
+LE$iso2c = countrycode(LE$country, 'country.name', 'iso2c') 
+LE
+LE2 = LE %>% filter(sex == "Both sexes" & year == 2015)
+LE2
+GDPPC2 = GDPPC[48:264,]  #These are the rows of the indiviudal countries rather than regions
+GDPPC3 = GDPPC2[!is.na(GDPPC2$NY.GDP.PCAP.KD),]
+head(GDPPC3)
+dim(GDPPC2)
+dim(GDPPC3)
+# Try and get a GDP for every country in the LE2 set. 
+GDPPC_LE = left_join(LE2,GDPPC3,"iso2c") %>% select(country.x,NY.GDP.PCAP.KD,value,year.x)
+head(GDPPC_LE)
+#plot the data
+library(plotly)
+names(GDPPC_LE)[1] = "Country"
+ThePlot = GDPPC_LE %>% 
+  ggplot(aes(NY.GDP.PCAP.KD,value,color = Country)) + geom_point() + xlab("GDP Per Capita") +   ylab("Life Expectancy") + ggtitle("Life Expectancy v. GDP Per Capita for 2015")
+ggplotly(ThePlot)
+```
+
+
+#String Basics
+```{r}
+string1 = "Don't let what you can't do interfere with what you can do."
+string2 = "\"Don't let what you can't do interfere with what you can do.\" - John Wooden"
+writeLines(string2)
+
+
+string3 = c("IF","YOU","GET","GIVE,", "IF","YOU","LEARN","TEACH", "-MAYA", "ANGELOU")
+string3
+
+#strinr functions
+str_length(string3)
+
+#Collapse Strings... put them together
+str_c(string3)
+#Collapse Strings... put them together
+str_c(string3, collapse = "")
+#Collapse Strings... put them together
+str_c(string3, collapse = ",")
+#Collapse Strings... put them together
+str_c(string3, collapse = " ")
+
+string4 = str_c(string3, collapse = " ")
+string4
+str_sub(string4,1,1)
+str_sub(string4,1,7)
+str_sub(string4,-3,-1)
+str_sub(string4,-14,-1)
+str_sub(string4,3,7)
+```
+
+
+# Regular Expressions
+## Basics
+```{r}
+string5 = " \"I've missed more than 9000 shots in my career. I've lost almost 300 games. 26 times, I've been trusted to take the game winning shot and missed. I've failed over and over and over again in my life. And that is why I succeed.\" - Michael Jordan"
+
+str_view(string5, "shot") 
+str_view_all(string5,"shot")
+str_view_all(string5,"shot\\.")
+str_view_all(string5,"\\bshot\\b") #Important
+str_view_all(string5,"I")
+str_view_all(string5," I ")
+str_view_all(string5,"\\. I") #Find "I" at the beginning of a sentence. 
+str_view_all(string5,"(\\. I| \"I)")
+#How can we count how many times it comes up in the string?  The answer is coming.
+
+
+str_view(string2, "do.") # . is the wildcard character 
+str_view(string2, "do\\.") # need \\. because \ is an escape in both strings and regular expressions
+```
+
+##Anchors
+```{r}
+string6 = " \"Sometimes when you innovate, you make mistakes. It is best to admit them quickly, and get on with improving your other innovations.\" - Steve Jobs"
+str_view(string1, "^Don't")
+str_view(string1, "^interfere")
+str_view(string3, "^T")
+str_view(string6, "^\"Some") #Why Nothing ... we will come back to this.
+str_view(string6, "Jobs$")
+
+#Find digits and whitespace
+str_view(string5,"\\d")
+str_view_all(string5,"\\d")
+str_view_all(string6,"\\s") #Ahh... there was white space
+str_view(string6, "^ \"Some") 
+```
+
+## Character Classes and Alternatives
+```{r}
+#Say we have a list of quotes and we want to find those from Steve Jobs
+#But we don't know if it is under Steve, Jobs or Steve Jobs  
+#So we look for Steve or Jobs
+
+df = data.frame(quotes = c(string2,string4,string5,string6))
+df$quotes
+str_view(df$quotes,"(Steve|Jobs)")
+str(df) # quotes are factors by default on this machine.
+
+df = data.frame(quotes = c(string2,string4,string5,string6), stringsAsFactors = FALSE)
+df$quotes
+str_view(df$quotes,"(Steve|Jobs)")
+str_view_all(df$quotes,"[abc]")
+str_view_all(df$quotes,"[^abc]")
+```
+
+## Repitition
+```{r}
+# ?: 0 or 1
+# +: 1 or more
+# *: 0 or more
+
+str_view(df$quotes, "0+") #Greedy
+str_view(df$quotes, "[sn]+") #Greedy
+str_view_all(df$quotes, "[sn]+")
+
+#More Repitions
+# {n}: exactly n
+# {n,} n or more
+# {,m} at most m
+
+str_view_all(df$quotes, "[sn]{2}") #Greedy
+```
+
+
+
+## Detect and Count ... stringr and base
+```{r}
+#Recall
+str_view_all(string5,"shot")
+
+str_detect(string5,"shot")
+str_detect(string5,"rainbow")
+
+
+str_count(string5,"shot")
+str_count(string5,"rainbow")
+
+
+#from earlier
+str_view_all(string5,"(\\. I| \"I)")
+str_detect(string5,"(\\. I| \"I)")
+str_count(string5,"(\\. I| \"I)")
+
+#grepl
+grepl("and",string5) #similar to str_detect
+
+
+str_detect(df$quotes,"shot")
+grepl("shot",df$quotes)
+
+#How many quotes have the word "shot" in them?
+sum(str_detect(df$quotes,"shot"))
+sum(grepl("shot",df$quotes))
+
+#How many times does the word "shot" come up in all the texts together?
+str_count(df$quotes,"shot")
+sum(str_count(df$quotes,"shot"))
+```
+
+
+
+
+
+
+## Searching and Filtering
+```{r}
+#Searching for authors
+df = rbind(df,data.frame(quotes = "\"Success is peace of mind which is a direct result of self-satisfaction in knowing you did your best to become the best you are capable of becoming.\" - John Wooden"))
+df = rbind(df,data.frame(quotes = "\"In a gentle way, you can shake the world.\" - Mahatma Gandhi"))
+df
+
+sum(str_detect(df$quotes,"John Wooden"))
+#or
+sum(grepl("John Wooden",df$quotes))
+
+#Return the quotes from Wooden
+
+writeLines(df$quotes[str_detect(df$quotes,"John Wooden")])
+#or
+writeLines(df$quotes[grepl("John Wooden",df$quotes)])
+#or
+df %>% filter(str_detect(quotes,"John Wooden"))
+```
+
+
+#Search for Matches and a quick plot
+```{r}
+colors = c("orange","blue","yellow","green","purple","brown","red")
+color_expression = str_c(colors, collapse = "|")
+color_expression
+has_color = str_subset(sentences,color_expression)
+has_color
+matches = str_extract(has_color,color_expression)
+matches
+matches_all = str_extract_all(has_color,color_expression, simplify = TRUE)
+matches_all
+class(matches_all)
+matches_all = unlist(str_extract_all(has_color,color_expression))
+matches_all
+matchDF = data.frame(Colors = matches_all)
+matchDF %>% ggplot(aes(x = Colors, fill = Colors)) + geom_bar()
+matchDF %>% ggplot(aes(x = Colors, fill = Colors)) + geom_bar()+ scale_fill_manual(values=colors)
+colors[order(colors)]
+matchDF %>% ggplot(aes(x = Colors, fill = Colors)) + geom_bar()+ scale_fill_manual(values=colors[order(colors)])
+```
+
+## Grouped Matches
+```{r}
+author = "( -| - )([^ ]{2,}) ([^ ]{2,})"
+authors = df$quotes
+
+authors %>% str_extract(author)
+authors %>% str_match(author)
+
+dfAuthors = data.frame(authors %>% str_match(author)) 
+names(dfAuthors) = c("Full","Dash","First","Last")
+dfAuthors
+dfAuthors %>% select(c(First,Last))
+```
+
+## Replacement
+```{r}
+roster = data.frame(Name = c("John", "Nancy", "Fred", "Sam", "Julie"), Gender = c("male", "F", "M", "Female", "female"), Major = c("?","Math","Comp Sci", "?", ""))
+str_replace(roster$Gender,"(male|M)", "Male")
+str_replace(roster$Gender,"(\\bmale\\b|\\bM\\b)", "Male")
+roster$Gender = str_replace(roster$Gender,"(\\bmale\\b|\\bM\\b)", "Male")
+roster$Gender = str_replace(roster$Gender,"(\\bfemale\\b|\\bF\\b)", "Female")
+
+
+
+
+
+#You Try Change all the ? marks and null spaces to "<NA>".
+#Don't look at the next line of code yet :)
+
+
+
+
+
+
+
+str_replace(roster$Major,"(\\?|)", "NA")
+
+roster$Major = str_replace(roster$Major,"(\\?)", "")
+roster
+
+str(roster)
+
+roster$Gender = as.factor(roster$Gender)
+roster$Major = as.factor(roster$Major)
+levels(roster$Major) = droplevels(roster$Major,"")
+str(roster)
+```
+
+##Split
+```{r}
+#Basic Demo of str split
+
+str_split("Muhatma_Gandhi, John_Wooden, Maya_Angelou" , "(_|,)")
+str_split("Muhatma_Gandhi, John_Wooden, Maya_Angelou" , "(_|, )")
+
+#Look into the first object of the list (which is a string of strings)
+str_split("Muhatma_Gandhi, John_Wooden, Maya_Angelou" , "(_|, )")[[1]] 
+#or
+unlist(str_split("Muhatma_Gandhi, John_Wooden, Maya_Angelou" , "(_|, )")) 
+
+#Don't confuse with separate()
+library(tidyr)
+Authors = data.frame(Author = c("Muhatma_Gandhi", "John_Wooden", "Maya_Angelou"))
+Authors %>% separate(Author,into = c("First", "Last"), sep = "_")
+```
+
+##Split string into words
+```{r}
+s1 = sentences[1]
+str_split(s1," ")
+str_split(s1,"\\b")
+str_split(s1,boundary("word"))
+unlist(str_split(s1,boundary("word")))
+
+s2 = "I like chocolate. It is my favorite."
+str_split(s2," ")
+str_split(s2,boundary("word"))
+```
+
+#regex()
+```{r}
+roster = data.frame(Name = c("John", "Nancy", "Fred", "Sam", "Julie", "Pat", "Mel", "Jay"), Gender = c("male", "F", "M", "Female", "femaLe","m","f","MaLe"), Major = c("NA","Math","Comp Sci", "NA", "NA", "NA", "English", "EE"))
+roster
+str(roster)
+
+roster$Gender = str_replace(roster$Gender,"(\\bmale\\b|\\bM\\b)", "Male")
+roster$Gender = str_replace(roster$Gender,"(\\bfemale\\b|\\bF\\b)", "Female")
+roster
+str(roster)
+
+roster$Gender = str_replace(roster$Gender,regex("(\\bmale\\b|\\bM\\b)",ignore_case = TRUE), "Male")
+roster$Gender = str_replace(roster$Gender,regex("(\\bfemale\\b|\\bF\\b)",ignore_case = TRUE), "Female")
+roster$Gender = as.factor(roster$Gender)
+roster
+str(roster)
+
+roster[roster$Major=="NA",'Major'] <- NA
+roster
+
+```
+
+
+
+
+
+#Example NYT
+
+```{r NYT}
+######################
+
+# Loading the Data from the NYT API
+
+#Information about NYT API
+#https://developer.nytimes.com/faq#a11
+######################
+
+library(tidyr)
+library(plyr)
+library(jsonlite)
+library(dplyr)
+library(tidyverse)
+
+NYTIMES_KEY = "OG89fUubcS8FXofVrLA4dmIOHh5omiFa" #Your Key Here … get from NTY API website
+
+# Let's set some parameters
+term <- "Central+Park+Jogger" # Need to use + to string together separate words
+begin_date <- "19890419"
+end_date <- "19910419"
+
+baseurl <- paste0("http://api.nytimes.com/svc/search/v2/articlesearch.json?q=",term,
+                  "&begin_date=",begin_date,"&end_date=",end_date,
+                  "&facet_filter=true&api-key=",NYTIMES_KEY, sep="")
+
+baseurl
+
+initialQuery <- jsonlite::fromJSON(baseurl)
+maxPages <- round((initialQuery$response$meta$hits[1] / 10)-1)
+
+maxPages
+
+pages <- list()
+for(i in 0:maxPages){
+  nytSearch <- jsonlite::fromJSON(paste0(baseurl, "&page=", i), flatten = TRUE) %>% data.frame() 
+  message("Retrieving page ", i)
+  pages[[i+1]] <- nytSearch 
+  Sys.sleep(7) # to avoid http 429 error (too many requests)
+}
+
+allNYTSearch <- rbind_pages(pages)
+
+
+#Segmentation
+
+# Visualize coverage by section
+allNYTSearch %>% 
+  group_by(response.docs.type_of_material) %>%
+  dplyr::summarize(count=n()) %>%
+  mutate(percent = (count / sum(count))*100) %>%
+  ggplot() +
+  geom_bar(aes(y=percent, x=response.docs.type_of_material, fill=response.docs.type_of_material), stat = "identity") + coord_flip()
+
+#Make another column of News versus Other ... The labels
+
+allNYTSearch$NewsOrOther = ifelse(allNYTSearch$response.docs.type_of_material == "News","News","Other")
+#There is an NA in NewsOrOther
+
+# Visualize coverage of News or Other
+allNYTSearch[!is.na(allNYTSearch$NewsOrOther),] %>% 
+  group_by(NewsOrOther) %>%
+  dplyr::summarize(count=n()) %>%
+  mutate(percent = (count / sum(count))*100) %>%
+  ggplot() +
+  geom_bar(aes(y=percent, x=NewsOrOther, fill=NewsOrOther), stat = "identity") + coord_flip()
+
+
+
+#Identify Article and Tokenize
+
+#Article 4 is "Other"
+#Artilce 9 is "News"
+#Artilce 44 is "Other"
+
+ArticleToClassify = allNYTSearch[4,] # Check out 4, 9 and 44
+ArticleToClassify$response.docs.headline.main
+
+trueType = ArticleToClassify$NewsOrOther[1]
+trueType
+
+library(tm) #text mining library provides the stopwords() function
+stopwords()
+
+#The [^[:alnum:] ] replaces all non alphanumeric characters with nulls.  
+theText = unlist(str_split(str_replace_all(ArticleToClassify$response.docs.headline.main,"[^[:alnum:] ]", ""), boundary("word"))) #Take out all but alpha numeric characters from search string
+
+theText
+
+wordsToTakeOut = stopwords()
+
+#put word boundaries stopwords so that we don't detect partial words later
+wordsToTakeOut = str_c(wordsToTakeOut,collapse = "\\b|\\b") 
+wordsToTakeOut = str_c("\\b",wordsToTakeOut,"\\b")
+wordsToTakeOut
+
+importantWords = theText[!str_detect(theText,regex(wordsToTakeOut,ignore_case = TRUE))]
+
+importantWords
+
+#Find Percentages in News and Other
+
+newsArticles = allNYTSearch %>% filter(NewsOrOther == "News")
+otherArticles = allNYTSearch %>% filter(NewsOrOther == "Other")
+
+numNewsArticles = dim(newsArticles)[1]
+numOtherArticles = dim(otherArticles)[1]
+
+numNewsArticles
+numOtherArticles
+
+thePercentHolderNews = c()
+thePercentHolderOther = c()
+
+for(i in 1 : length(importantWords)) #for each important word in the headline
+{
+  #number of News articles that have the ith word in the headline of interest
+  numNews = sum(str_count(newsArticles$response.docs.headline.main,importantWords[i]))
+  #number of Other articles that have the ith word in the headline of interest
+   numOther = sum(str_count(otherArticles$response.docs.headline.main,importantWords[i]))
+ 
+  #percentage of News articles that have the ith word in the headline of interest 
+  thePercentHolderNews[i] = numNews / numNewsArticles
+  #percentage of Other articles that have the ith word in the headline of interest
+  thePercentHolderOther[i] = numOther / numOtherArticles
+  
+  #all the News percentages (for each word)
+  thePercentHolderNews
+  #all the Other percentages (for each word)
+  thePercentHolderOther
+  
+}
+
+thePercentHolderNews
+thePercentHolderOther
+
+classifiedAs = if_else(sum(thePercentHolderNews)>sum(thePercentHolderOther),"News","Other")
+sum(thePercentHolderNews)
+sum(thePercentHolderOther)
+
+Result = str_c("The ", trueType," article was classified as ", classifiedAs, " with a News score of: ",round(sum(thePercentHolderNews),4), " and an Other score of: ", round(sum(thePercentHolderOther),4), ".") 
+Result
+
+
+## VISUALIZE
+
+articleStats = data.frame(Word = importantWords, newsScore = thePercentHolderNews, otherScore = thePercentHolderOther)
+
+# Wide Form / Not Tidy
+articleStats
+
+#Tidy and Plot
+articleStats[,c(2,3)] %>% gather(Type,Percent) %>% mutate(Word = rep(articleStats$Word,2)) %>% ggplot(aes(y = Percent, x = Type, fill = Word)) + geom_col()
+
+articleStats[,c(2,3)] %>% gather(Type,Percent) %>% mutate(Word = rep(articleStats$Word,2)) %>% ggplot(aes(y = Percent, x = Type, fill = Word)) + geom_col() + facet_wrap(~Word)
+```
+
+
+
+
+
+
+
