@@ -1,0 +1,501 @@
+---
+title: "Unit 7 DDS For Live Session R Code"
+output: html_document
+---
+
+# Titanic NB Analysis
+
+## NB with only Age and Class (Use this code to change seed and see variances of accuracy etc.)
+```{r}
+set.seed(4)
+trainIndices = sample(seq(1:length(titanicClean$Age)),round(.7*length(titanicClean$Age)))
+trainTitanic = titanicClean[trainIndices,]
+testTitanic = titanicClean[-trainIndices,]
+model = naiveBayes(trainTitanic[,c("Age","Pclass")],factor(trainTitanic$Survived, labels = c("No", "Yes")))
+CM = confusionMatrix(table(factor(testTitanic$Survived, labels = c("No", "Yes")),predict(model,testTitanic[,c("Age","Pclass")])))
+CM
+```
+
+## Find average accuracy etc. of 100 train / test splits
+```{r}
+AccHolder = numeric(100)
+SensHolder = numeric(100)
+SpecHolder = numeric(100)
+
+for (seed in 1:100)
+{
+set.seed(seed)
+trainIndices = sample(seq(1:length(titanicClean$Age)),round(.7*length(titanicClean$Age)))
+trainTitanic = titanicClean[trainIndices,]
+testTitanic = titanicClean[-trainIndices,]
+model = naiveBayes(trainTitanic[,c("Age","Pclass")],factor(trainTitanic$Survived, labels = c("No", "Yes")))
+CM = confusionMatrix(table(factor(testTitanic$Survived, labels = c("No", "Yes")),predict(model,testTitanic[,c("Age","Pclass")])))
+AccHolder[seed] = CM$overall[1]
+SensHolder[seed] = CM$byClass[1]
+SpecHolder[seed] = CM$byClass[2]
+}
+
+mean(AccHolder)
+#Standard Error of the Mean
+sd(AccHolder)/sqrt(100) 
+mean(SensHolder)
+#Standard Error of the Mean
+sd(SensHolder)/sqrt(100) 
+mean(SpecHolder)
+#Standard Error of the Mean
+sd(SensHolder)/sqrt(100)
+```
+
+## Age Class and Sex
+```{r}
+set.seed(4)
+trainIndices = sample(seq(1:length(titanicClean$Age)),round(.7*length(titanicClean$Age)))
+trainTitanic = titanicClean[trainIndices,]
+testTitanic = titanicClean[-trainIndices,]
+model = naiveBayes(trainTitanic[,c("Sex", "Age","Pclass")],factor(trainTitanic$Survived, labels = c("No", "Yes")))
+CM = confusionMatrix(table(factor(testTitanic$Survived, labels = c("No", "Yes")),predict(model,testTitanic[,c("Sex", "Age","Pclass")])))
+CM
+```
+
+# Find Average etc. of 100 train / test splits with Age, Class, Sex model
+```{r}
+AccHolder = numeric(100)
+SensHolder = numeric(100)
+SpecHolder = numeric(100)
+
+for (seed in 1:100)
+{
+set.seed(seed)
+trainIndices = sample(seq(1:length(titanicClean$Age)),round(.7*length(titanicClean$Age)))
+trainTitanic = titanicClean[trainIndices,]
+testTitanic = titanicClean[-trainIndices,]
+model = naiveBayes(trainTitanic[,c("Sex","Age","Pclass")],factor(trainTitanic$Survived, labels = c("No", "Yes")))
+CM = confusionMatrix(table(factor(testTitanic$Survived, labels = c("No", "Yes")),predict(model,testTitanic[,c("Sex","Age","Pclass")])))
+AccHolder[seed] = CM$overall[1]
+SensHolder[seed] = CM$byClass[1]
+SpecHolder[seed] = CM$byClass[2]
+}
+
+mean(AccHolder)
+#Standard Error of the Mean
+sd(AccHolder)/sqrt(100) 
+mean(SensHolder)
+#Standard Error of the Mean
+sd(SensHolder)/sqrt(100) 
+mean(SpecHolder)
+#Standard Error of the Mean
+sd(SensHolder)/sqrt(100)
+```
+
+
+## Bonus: Compare wth KNN
+
+```{r}
+AccHolder = numeric(100)
+SensHolder = numeric(100)
+SpecHolder = numeric(100)
+
+for (seed in 1:100)
+{
+set.seed(seed)
+trainIndices = sample(seq(1:length(titanicClean$Age)),round(.7*length(titanicClean$Age)))
+trainTitanic = titanicClean[trainIndices,]
+testTitanic = titanicClean[-trainIndices,]
+
+#Male
+trainTitanicMale = trainTitanic %>% filter(Sex == "male")
+testTitanicMale = testTitanic %>% filter(Sex == "male")
+
+classificationsMale = knn(trainTitanicMale[(!is.na(trainTitanicMale$Age) & !is.na(trainTitanicMale$Pclass)),c(3,6)],testTitanicMale[(!is.na(testTitanicMale$Age) & !is.na(testTitanicMale$Pclass)),c(3,6)],trainTitanicMale$Survived[(!is.na(trainTitanicMale$Age) & !is.na(trainTitanicMale$Pclass))], prob = TRUE, k = 11)
+
+# Female
+trainTitanicFemale = trainTitanic %>% filter(Sex == "female")
+testTitanicFemale = testTitanic %>% filter(Sex == "female")
+
+classificationsFemale = knn(trainTitanicFemale[(!is.na(trainTitanicFemale$Age) & !is.na(trainTitanicFemale$Pclass)),c(3,6)],testTitanicFemale[(!is.na(testTitanicFemale$Age) & !is.na(testTitanicFemale$Pclass)),c(3,6)],trainTitanicFemale$Survived[(!is.na(trainTitanicFemale$Age) & !is.na(trainTitanicFemale$Pclass))], prob = TRUE, k = 11)
+
+classificationsMF = factor(c(classificationsMale,classificationsFemale), labels = c("No","Yes"))
+
+testM = testTitanicMale[(!is.na(testTitanicMale$Age) & !is.na(testTitanicMale$Pclass)),]
+testF = testTitanicFemale[(!is.na(testTitanicFemale$Age) & !is.na(testTitanicFemale$Pclass)),]
+
+testMF = rbind(testM,testF)
+
+table(classificationsMF,testMF$Survived[(!is.na(testMF$Age) & !is.na(testMF$Pclass))])
+CM = confusionMatrix(table(classificationsMF,factor(testMF$Survived[(!is.na(testMF$Age) & !is.na(testMF$Pclass))],labels = c("No","Yes"))))
+CM
+AccHolder[seed] = CM$overall[1]
+SensHolder[seed] = CM$byClass[1]
+SpecHolder[seed] = CM$byClass[2]
+}
+
+mean(AccHolder)
+#Standard Error of the Mean
+sd(AccHolder)/sqrt(100) 
+mean(SensHolder)
+#Standard Error of the Mean
+sd(SensHolder)/sqrt(100) 
+mean(SpecHolder)
+#Standard Error of the Mean
+sd(SensHolder)/sqrt(100)
+```
+
+# IRIS QUESTION
+```{r}
+
+iterations = 100
+
+AccHolder = numeric(100)
+SensHolderSet = numeric(100)
+SensHolderVers = numeric(100)
+SensHolderVirg = numeric(100)
+SpecHolderSet = numeric(100)
+SpecHolderVers = numeric(100)
+SpecHolderVirg = numeric(100)
+
+for(seed in 1:iterations)
+{
+    set.seed(seed)
+    trainIndices = sample(seq(1:150),round(.7*150))
+    irisTrain = iris[trainIndices,]
+    irisTest = iris[-trainIndices,]
+    model = naiveBayes(irisTrain[,c(1,2)],irisTrain[,5])
+    CM = confusionMatrix(table(irisTest$Species,predict(model,irisTest[,c(1,2)])))
+    AccHolder[seed] = CM$overall[1]
+    SensHolderSet[seed] = CM$byClass[,1][1]
+    SensHolderVers[seed] = CM$byClass[,1][2]
+    SensHolderVirg[seed] = CM$byClass[,1][3]
+    SpecHolderSet[seed] = CM$byClass[,2][1]
+    SpecHolderVers[seed] = CM$byClass[,2][2]
+    SpecHolderVirg[seed] = CM$byClass[,2][3]
+}
+
+    mean(AccHolder)
+    mean(SensHolderSet)
+    mean(SensHolderVers)
+    mean(SensHolderVirg)
+    mean(SpecHolderSet)
+    mean(SpecHolderVers)
+    mean(SpecHolderVirg)
+    
+```
+
+
+# BONUS TRUMP HEADLINE V. SNIPPET
+
+## Headline
+```{r NYT}
+######################
+
+# Loading the Data from the NYT API
+
+# We will load from "Data+Science" and "Trump" searches.
+
+# Data+Science Search
+# term <- "Data+Science" # Need to use + to string together separate words
+# begin_date <- "20180901"
+# end_date <- "20190502"
+
+# Trump Search
+# term <- "Trump" # Need to use + to string together separate words
+# begin_date <- "20190415"
+# end_date <- "20190502"
+
+######################
+
+#NYT Example
+
+library(tm) #text mining library provides the stopwords() function
+library(tidyr)
+library(plyr)
+library(jsonlite)
+library(dplyr)
+library(tidyverse)
+
+NYTIMES_KEY = "OG89fUubcS8FXofVrLA4dmIOHh5omiFa" #Your Key Here … get from NTY API website
+
+# Let's set some parameters
+term <- "Trump" # Need to use + to string together separate words
+begin_date <- "20190901"
+end_date <- "20190930"
+
+baseurl <- paste0("http://api.nytimes.com/svc/search/v2/articlesearch.json?q=",term,
+                  "&begin_date=",begin_date,"&end_date=",end_date,
+                  "&facet_filter=true&api-key=",NYTIMES_KEY, sep="")
+
+baseurl
+
+initialQuery <- jsonlite::fromJSON(baseurl)
+maxPages <- round((initialQuery$response$meta$hits[1] / 10)-1)
+maxPages
+
+pages <- list()
+for(i in 0:maxPages){
+  nytSearch <- jsonlite::fromJSON(paste0(baseurl, "&page=", i), flatten = TRUE) %>% data.frame() 
+  message("Retrieving page ", i)
+  pages[[i+1]] <- nytSearch 
+  Sys.sleep(7) 
+}
+
+allNYTSearch <- rbind_pages(pages)
+
+
+#Segmentation
+
+# Visualize coverage by section
+allNYTSearch %>% 
+  group_by(response.docs.type_of_material) %>%
+  dplyr::summarize(count=n()) %>%
+  mutate(percent = (count / sum(count))*100) %>%
+  ggplot() +
+  geom_bar(aes(y=percent, x=response.docs.type_of_material, fill=response.docs.type_of_material), stat = "identity") + coord_flip()
+
+#Make another column of News versus Other ... The labels
+
+allNYTSearch$NewsOrOther = ifelse(allNYTSearch$response.docs.type_of_material == "News","News","Other")
+#There is an NA in NewsOrOther
+
+# Visualize coverage of News or Other
+allNYTSearch[!is.na(allNYTSearch$NewsOrOther),] %>% 
+  group_by(NewsOrOther) %>%
+  dplyr::summarize(count=n()) %>%
+  mutate(percent = (count / sum(count))*100) %>%
+  ggplot() +
+  geom_bar(aes(y=percent, x=NewsOrOther, fill=NewsOrOther), stat = "identity") + coord_flip()
+
+
+
+#Train and Test Split 70%/30%
+
+set.seed(2)
+trainInd = sample(seq(1,dim(allNYTSearch)[1],1),round(.7*dim(allNYTSearch)[1]))
+allNYTSearchTrain = allNYTSearch[trainInd,]
+allNYTSearchTest = allNYTSearch[-trainInd,]
+
+
+#This function returns P(News | Keyword) 
+#P(News|KW) = P(KW|News)* P(News) / P(KW)
+Pnews_word = function(key_word, trainingSet, alphaLaplace = 1, betaLaplace = 1) # alpha and beta are for laplace smoothing
+{
+  trainingSet$response.docs.headline.main = unlist(str_replace_all(trainingSet$response.docs.headline.main,"[^[:alnum:] ]", "")) #Take out all but alpha numeric characters from training headlines
+  
+  #print(key_word)
+  NewsGroup = trainingSet[trainingSet$NewsOrOther == "News",]
+  OtherGroup = trainingSet[trainingSet$NewsOrOther == "Other",]
+  
+  pNews = dim(NewsGroup)[1] / (dim(NewsGroup)[1] + dim(OtherGroup)[1])
+  pOther = 1 - pNews
+  
+  pKWGivenNews = (length(str_which(NewsGroup$response.docs.headline.main,regex(str_c("\\b",key_word,"\\b",sep=""),ignore.case = TRUE)))+alphaLaplace)/(dim(NewsGroup)[1]+betaLaplace)
+  pKWGivenOther = (length(str_which(OtherGroup$response.docs.headline.main,regex(str_c("\\b",key_word,"\\b",sep=""),ignore.case = TRUE)))+alphaLaplace)/(dim(OtherGroup)[1]+betaLaplace)
+  
+  pKW = length(str_which(trainingSet$response.docs.headline.main,regex(str_c("\\b",key_word,"\\b",sep=""),ignore.case = TRUE)))/dim(trainingSet)[1]
+  
+  pNewsGivenKW = pKWGivenNews*pNews/pKW
+  pOtherGivenKW = pKWGivenOther*pOther/pKW
+  
+  return(pNewsGivenKW)
+}
+
+theScoreHolderNews = c()
+theScoreHolderOther = c()
+articleScoreNews = 0;
+articleScoreOther = 0;
+
+
+for (i in 1 : dim(allNYTSearchTest)[1])  #This loop iterates over the articles in the Test Set
+{
+  
+  articleScoreNews = 1; 
+  articleScoreOther = 1;
+
+#The [^[:alnum:] ] replaces all non alphanumeric characters with nulls.  
+theText = unlist(str_split(str_replace_all(allNYTSearchTest[i,]$response.docs.headline.main,"[^[:alnum:] ]", ""), stringr::boundary("word"))) #Take out all but alpha numeric characters from search string ... theText holds each word in the headline as its own word.  
+
+# stopwords() #from package tm
+wordsToTakeOut = stopwords()
+
+# put word boundaries stopwords so that we don't detect partial words later
+wordsToTakeOut = str_c(wordsToTakeOut,collapse = "\\b|\\b") 
+wordsToTakeOut = str_c("\\b",wordsToTakeOut,"\\b")
+#wordsToTakeOut
+
+importantWords = theText[!str_detect(theText,regex(wordsToTakeOut,ignore_case = TRUE))]
+
+#importantWords
+
+  for(j in 1 : length(importantWords))  #This loop iterates over the important words in the headline
+  {
+    articleScoreNews = articleScoreNews * Pnews_word(importantWords[j],allNYTSearchTrain)
+    articleScoreOther = articleScoreOther * (1 - Pnews_word(importantWords[j],allNYTSearchTrain))
+  }
+  theScoreHolderNews[i] = articleScoreNews
+  theScoreHolderOther[i] = articleScoreOther
+}
+
+# Classify the aricle as News or Other based on a given piece of information from the article.
+allNYTSearchTest$Classified = ifelse(theScoreHolderNews > theScoreHolderOther,"News","Other")
+
+#Confusion Matrix
+table(allNYTSearchTest$Classified,allNYTSearchTest$NewsOrOther) #Actual in Columns
+confusionMatrix(factor(allNYTSearchTest$Classified),factor(allNYTSearchTest$NewsOrOther))
+
+```
+
+## Snippet
+```{r NYT}
+######################
+
+# Loading the Data from the NYT API
+
+# We will load from "Data+Science" and "Trump" searches.
+
+# Data+Science Search
+# term <- "Data+Science" # Need to use + to string together separate words
+# begin_date <- "20180901"
+# end_date <- "20190502"
+
+# Trump Search
+# term <- "Trump" # Need to use + to string together separate words
+# begin_date <- "20190415"
+# end_date <- "20190502"
+
+######################
+
+#NYT Example
+
+library(tm) #text mining library provides the stopwords() function
+library(tidyr)
+library(plyr)
+library(jsonlite)
+library(dplyr)
+library(tidyverse)
+
+NYTIMES_KEY = "OG89fUubcS8FXofVrLA4dmIOHh5omiFa" #Your Key Here … get from NTY API website
+
+# Let's set some parameters
+term <- "Trump" # Need to use + to string together separate words
+begin_date <- "20190901"
+end_date <- "20190930"
+
+baseurl <- paste0("http://api.nytimes.com/svc/search/v2/articlesearch.json?q=",term,
+                  "&begin_date=",begin_date,"&end_date=",end_date,
+                  "&facet_filter=true&api-key=",NYTIMES_KEY, sep="")
+
+baseurl
+
+initialQuery <- jsonlite::fromJSON(baseurl)
+maxPages <- round((initialQuery$response$meta$hits[1] / 10)-1)
+maxPages
+
+pages <- list()
+for(i in 0:maxPages){
+  nytSearch <- jsonlite::fromJSON(paste0(baseurl, "&page=", i), flatten = TRUE) %>% data.frame() 
+  message("Retrieving page ", i)
+  pages[[i+1]] <- nytSearch 
+  Sys.sleep(7) 
+}
+
+allNYTSearch <- rbind_pages(pages)
+
+
+#Segmentation
+
+# Visualize coverage by section
+allNYTSearch %>% 
+  group_by(response.docs.type_of_material) %>%
+  dplyr::summarize(count=n()) %>%
+  mutate(percent = (count / sum(count))*100) %>%
+  ggplot() +
+  geom_bar(aes(y=percent, x=response.docs.type_of_material, fill=response.docs.type_of_material), stat = "identity") + coord_flip()
+
+#Make another column of News versus Other ... The labels
+
+allNYTSearch$NewsOrOther = ifelse(allNYTSearch$response.docs.type_of_material == "News","News","Other")
+#There is an NA in NewsOrOther
+
+# Visualize coverage of News or Other
+allNYTSearch[!is.na(allNYTSearch$NewsOrOther),] %>% 
+  group_by(NewsOrOther) %>%
+  dplyr::summarize(count=n()) %>%
+  mutate(percent = (count / sum(count))*100) %>%
+  ggplot() +
+  geom_bar(aes(y=percent, x=NewsOrOther, fill=NewsOrOther), stat = "identity") + coord_flip()
+
+
+
+#Train and Test Split 70%/30%
+
+set.seed(2)
+trainInd = sample(seq(1,dim(allNYTSearch)[1],1),round(.7*dim(allNYTSearch)[1]))
+allNYTSearchTrain = allNYTSearch[trainInd,]
+allNYTSearchTest = allNYTSearch[-trainInd,]
+
+
+#This function returns P(News | Keyword) 
+#P(News|KW) = P(KW|News)* P(News) / P(KW)
+Pnews_word = function(key_word, trainingSet, alphaLaplace = 1, betaLaplace = 1) # alpha and beta are for laplace smoothing
+{
+  trainingSet$response.docs.headline.main = unlist(str_replace_all(trainingSet$response.docs.snippet,"[^[:alnum:] ]", "")) #Take out all but alpha numeric characters from training headlines
+  
+  #print(key_word)
+  NewsGroup = trainingSet[trainingSet$NewsOrOther == "News",]
+  OtherGroup = trainingSet[trainingSet$NewsOrOther == "Other",]
+  
+  pNews = dim(NewsGroup)[1] / (dim(NewsGroup)[1] + dim(OtherGroup)[1])
+  pOther = 1 - pNews
+  
+  pKWGivenNews = (length(str_which(NewsGroup$response.docs.snippet,regex(str_c("\\b",key_word,"\\b",sep=""),ignore.case = TRUE)))+alphaLaplace)/(dim(NewsGroup)[1]+betaLaplace)
+  pKWGivenOther = (length(str_which(OtherGroup$response.docs.snippet,regex(str_c("\\b",key_word,"\\b",sep=""),ignore.case = TRUE)))+alphaLaplace)/(dim(OtherGroup)[1]+betaLaplace)
+  
+  pKW = length(str_which(trainingSet$response.docs.snippet,regex(str_c("\\b",key_word,"\\b",sep=""),ignore.case = TRUE)))/dim(trainingSet)[1]
+  
+  pNewsGivenKW = pKWGivenNews*pNews/pKW
+  pOtherGivenKW = pKWGivenOther*pOther/pKW
+  
+  return(pNewsGivenKW)
+}
+
+theScoreHolderNews = c()
+theScoreHolderOther = c()
+articleScoreNews = 0;
+articleScoreOther = 0;
+
+
+for (i in 1 : dim(allNYTSearchTest)[1])  #This loop iterates over the articles in the Test Set
+{
+  
+  articleScoreNews = 1; 
+  articleScoreOther = 1;
+
+#The [^[:alnum:] ] replaces all non alphanumeric characters with nulls.  
+theText = unlist(str_split(str_replace_all(allNYTSearchTest[i,]$response.docs.snippet,"[^[:alnum:] ]", ""), stringr::boundary("word"))) #Take out all but alpha numeric characters from search string ... theText holds each word in the headline as its own word.  
+
+# stopwords() #from package tm
+wordsToTakeOut = stopwords()
+
+# put word boundaries stopwords so that we don't detect partial words later
+wordsToTakeOut = str_c(wordsToTakeOut,collapse = "\\b|\\b") 
+wordsToTakeOut = str_c("\\b",wordsToTakeOut,"\\b")
+#wordsToTakeOut
+
+importantWords = theText[!str_detect(theText,regex(wordsToTakeOut,ignore_case = TRUE))]
+
+#importantWords
+
+  for(j in 1 : length(importantWords))  #This loop iterates over the important words in the headline
+  {
+    articleScoreNews = articleScoreNews * Pnews_word(importantWords[j],allNYTSearchTrain)
+    articleScoreOther = articleScoreOther * (1 - Pnews_word(importantWords[j],allNYTSearchTrain))
+  }
+  theScoreHolderNews[i] = articleScoreNews
+  theScoreHolderOther[i] = articleScoreOther
+}
+
+# Classify the aricle as News or Other based on a given piece of information from the article.
+allNYTSearchTest$Classified = ifelse(theScoreHolderNews > theScoreHolderOther,"News","Other")
+
+#Confusion Matrix
+table(allNYTSearchTest$Classified,allNYTSearchTest$NewsOrOther) #Actual in Columns
+confusionMatrix(factor(allNYTSearchTest$Classified),factor(allNYTSearchTest$NewsOrOther))
+```
