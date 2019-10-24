@@ -1,0 +1,422 @@
+---
+title: "Unit 10 Overall"
+author: "Bivin"
+date: "4/30/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Unit 10 R Code
+
+```{r}
+library(tidyverse)
+library(reshape2)
+
+#Toy data set with miles per gallon versus weight
+dfMPG = data.frame(MPG = c(42,40,38,28,32,30,18,20,22), Weight = c(1,1,1,2,2,2,3,3,3))
+
+dfMPG %>% ggplot(aes(y = MPG, x = Weight)) + geom_point()
+
+# set the yintercept and slope so we can change later to see the effects on the SSE
+yint = 50.1
+slope = -10
+
+#Create the residual: observed - expected
+residuals = dfMPG$MPG - (yint+dfMPG$Weight*slope)
+
+#Look at sum of the residuals ( which is zero for the regression line)
+sum(residuals)
+#Look at the sum of the squared residuals which is the SSE or SSR
+sum(residuals^2)
+
+#Flexible Plotting
+startx = 1
+starty = yint + slope * startx
+endx = 3
+endy = yint + slope * endx
+
+dfMPG %>% ggplot(aes(Weight,MPG)) + 
+  geom_point() + 
+  geom_segment(aes(x = startx, y = starty, xend = endx, yend = endy)) +
+  xlim(0,4)
+```
+
+
+### Parameter Estimte Table and Distributions of Sample Intercept and Slope
+```{r}
+#Toy data set with miles per gallon versus weight
+dfMPG = data.frame(MPG = c(42,40,38,28,32,30,18,20,22), Weight = c(1,1,1,2,2,2,3,3,3))
+
+dfMPG %>% ggplot(aes(y = MPG, x = Weight)) + geom_point()
+
+#Show lm() and estimation of toy example we have been using
+fit = lm(MPG~Weight, data = dfMPG)
+summary(fit)
+#note that here beta_0_hat and beta_1_hat are beta_0 and beta_1
+fit$coefficients
+#beta_0_hat
+fit$coefficients[1]
+#beta_1_hat
+fit$coefficients[2]
+
+```
+
+## Simulating Slope / By hand and with a loop
+```{r}
+### now lets simulate more samples from distributions described by beta_0 = 50 and beta_1 = -10 and sigma = 2
+### When Weight = 1 (1000 lbs) Mu = 40
+simWeight1 = rnorm(3,40,2)
+### When Weight = 2 (2000 lbs) Mu = 30
+simWeight2 = rnorm(3,30,2)
+### When Weight = 3 (3000 lbs) Mu = 20
+simWeight3 = rnorm(3,20,2)
+
+### make the coresponding weights
+weights = c(1,1,1,2,2,2,3,3,3)
+
+### make a data frame so we can use lm() and ggplot()
+dffullSample = data.frame( Weight = weights, MPG = c(simWeight1,simWeight2,simWeight3))
+
+dffullSample
+
+### plot the data
+dffullSample %>% ggplot(aes(x = Weight, y = MPG)) + geom_point()
+
+### plot the data and the line
+dffullSample %>% ggplot(aes(x = Weight, y = MPG)) + geom_point() + geom_smooth(method = "lm")
+
+### get the sample intercept and slope
+fit = lm(MPG~Weight, data = dffullSample)
+#summary(fit)
+fit$coefficients[1]
+fit$coefficients[2]
+```
+
+
+## Loop for simulating many sample and thus many sample intercepts
+```{r}
+#now let's put it in a loop and see if we can see the distribution of the intercept
+# remember that mu = 50-10*Weight and sigma = 2
+
+#Holds the generated sample intercepts
+sampInterceptHolder = c()
+numSampIntercepts = 10000
+for (i in 1:numSampIntercepts)
+{
+  #now lets simulate more samples from distributions described by beta_0 = 50 and beta_1 = -10 and sigma = 2
+  #When Weight = 1 (1000 lbs) Mu = 40
+  simWeight1 = rnorm(3,40,2)
+  #When Weight = 2 (2000 lbs) Mu = 30
+  simWeight2 = rnorm(3,30,2)
+  #When Weight = 3 (3000 lbs) Mu = 20
+  simWeight3 = rnorm(3,20,2)
+  
+  # make the coresponding weights
+  weights = c(1,1,1,2,2,2,3,3,3)
+  
+  #make a data frame so we can use lm() and ggplot()
+  dffullSample = data.frame(Weight = weights, MPG = c(simWeight1,simWeight2,simWeight3))
+  
+  #get the sample intercept and slope
+  fit = lm(MPG~Weight, data = dffullSample)
+  sampInterceptHolder[i] = fit$coefficients[1]
+}
+
+#Used a simple histogram (rather than from ggplot) since not for presentation
+hist(sampInterceptHolder, main = str_c("Distribution of Intercpets from ", numSampIntercepts, " Samples"), xlab = "Sample Intercpet")
+summary(sampInterceptHolder)
+```
+
+## Now show calculation of t-statistic and pvalue
+```{r}
+fit = lm(MPG~Weight, data = dfMPG)
+summary(fit)
+confint(fit)
+
+#Intercept
+tstat = 50/1.6330 #beta_0_hat / SE(beta_0_hat)
+pvalue = (1-pt(tstat,7)) * 2 # Mult by 2 since 2 sided test
+tstat
+pvalue
+
+#Slope
+tstat = -10/.7559 #beta_0_hat / SE(beta_0_hat)
+pvalue = (pt(tstat,7)) * 2 # Mult by 2 since 2 sided test
+tstat
+pvalue
+
+# Back to slides for hypothesis test
+```
+
+
+###Example: MPG v. Weight (MPG R Dataset)
+```{r}
+mtcars2 = mtcars %>% filter(wt < 4.5)
+fit = lm(mpg~wt, mtcars2)
+summary(fit)
+confint(fit)
+mercedes = data.frame(wt = 2.304)
+predict(fit, newdata = mercedes, interval = "confidence")
+```
+
+###Transformations.
+
+```{r}
+#Recall
+
+mtcars %>% 
+  ggplot(aes(x = wt, y = mpg)) + geom_point() + ggtitle("mtcars: mpg v. weight") + geom_smooth(method = "lm") + xlim(0,6)
+
+# degree 1 model
+fit = lm(mpg~wt, data = mtcars)
+summary(fit)
+
+#degree 2 model
+mtcars %>% ggplot(aes(x = wt, y = mpg)) + geom_point()
+mtcars3 = mtcars %>% mutate(wt2 = wt^2)
+fit = lm(mpg~wt+wt2, mtcars3)
+summary(fit)
+
+preds = predict(fit)
+mtcars %>% ggplot(aes(x = wt, y = mpg)) + geom_point() +geom_line(data = mtcars, aes( x = wt, y = preds, col = "red"))
+
+#deg 3 model 
+mtcars %>% ggplot(aes(x = wt, y = mpg)) + geom_point()
+mtcars3 = mtcars %>% mutate(wt2 = wt^2, wt3 = wt^3)
+fit = lm(mpg~wt+wt2+wt3, mtcars3)
+summary(fit)
+preds = predict(fit)
+mtcars %>% ggplot(aes(x = wt, y = mpg)) + geom_point() +geom_line(data = mtcars, aes( x = wt, y = preds, col = "red"))
+```
+
+
+### MLR plotly and 3D plotting
+```{r}
+fit = lm(mpg ~ wt + hp, data = mtcars)
+summary(fit)
+
+preds = predict(fit)
+preds
+mtcars$predMPG = preds
+
+#Estimate the mpg for a car that weights 2000lbs and has 200 hp.  
+df = data.frame(wt = 2, hp = 200)
+predict(fit, newdata = df)
+
+#plot the regression plane
+
+#Graph Resolution (more important for more complex shapes)
+graph_reso <- .5
+
+#Setup Axis
+axis_x <- seq(min(mtcars$hp), max(mtcars$hp), length = 100)
+axis_y <- seq(min(mtcars$wt), max(mtcars$wt), length = 100)
+
+#Sample points
+surfaceMPG <- expand.grid(wt = axis_y,hp = axis_x,KEEP.OUT.ATTRS = F)
+surfaceMPG$mpg <- predict.lm(fit, newdata = surfaceMPG)
+surfaceMPG <- acast(surfaceMPG, wt ~ hp, value.var = "mpg") #y ~ x
+
+surface_plot <- plot_ly(mtcars, 
+                     x = ~hp, 
+                     y = ~wt, 
+                     z = ~mpg,
+                     text = "mpg", 
+                     type = "scatter3d",
+                     mode = "markers")
+
+
+surface_plot <- add_trace(p = surface_plot,
+                       z = surfaceMPG,
+                       x = axis_x,
+                       y = axis_y,
+                       type = "surface")
+
+surface_plot
+
+```
+
+
+
+###Plot of assumptions being met for MLR in 3D. and Curse of Dimensionality
+```{r}
+#Explanatory Variables
+axis_x <- seq(1,10, by = 1)
+axis_y <- seq(1,10, by = 1)
+GridOfXs <- expand.grid(x = axis_x,y = axis_y,KEEP.OUT.ATTRS = F)
+
+df = data.frame()
+
+#Create coordinates for a random sample of points on the grid
+set.seed(22) #for repeatability
+for (i in 1 : 6) #vary the last argument  and make last argument in sample call below 1 for independent observations.
+{
+  x = rep(sample(1:10,1),100) #how many we are pulling for each xy pair.
+  y = rep(sample(1:10,1),100) #how many we are pulling for each xy pair.
+  
+  z = 4 + 3*x - 7*y + rnorm(100,0,7) #make sure the you generate the same number of errors as the last argument in sample call. 
+  
+  df = rbind(df, data.frame(x = x, y = y, z = z))
+}
+
+surface_plot <- plot_ly(df, 
+                        x = ~x, 
+                        y = ~y, 
+                        z = ~z,
+                        text = "z", 
+                        type = "scatter3d",
+                        mode = "markers")
+
+surface_plot
+
+#Get coordinates for all points
+AllZs = 4 + 3*GridOfXs[,1] - 7*GridOfXs[,2]
+Coords = cbind(GridOfXs,AllZs)
+
+#Put in format for plotting with plot_ly
+CoordsMat <- acast(Coords, y ~ x, value.var = "AllZs") #y ~ x
+
+surface_plot <- add_trace(p = surface_plot,
+                          z = CoordsMat,
+                          x = axis_x,
+                          y = axis_y,
+                          type = "surface")
+
+surface_plot
+
+
+# Histogram and Scatter plot of Residuals
+
+fit = lm(z~x + y, data = df)
+hist(fit$residuals, col = "blue", main = "Histogram of Residuals")
+plot(fit$fitted.values,fit$residuals, main = "Plot of Residuals v. Fitted Values")
+
+library(GGally)
+ggpairs(df)
+```
+
+
+# Assumptions for MPG = Weigtht + HP MLR
+```{r}
+library(reshape2)
+
+#Graph Resolution (more important for more complex shapes)
+graph_reso <- .5
+
+#Setup Axis
+axis_x <- seq(min(mtcars$hp), max(mtcars$hp), length = 100)
+axis_y <- seq(min(mtcars$wt), max(mtcars$wt), length = 100)
+
+#Sample points
+surfaceMPG <- expand.grid(wt = axis_y,hp = axis_x,KEEP.OUT.ATTRS = F)
+surfaceMPG$mpg <- predict.lm(fit, newdata = surfaceMPG)
+surfaceMPG <- acast(surfaceMPG, wt ~ hp, value.var = "mpg") #y ~ x
+
+surface_plot <- plot_ly(mtcars, 
+                        x = ~hp, 
+                        y = ~wt, 
+                        z = ~mpg,
+                        text = "mpg", 
+                        type = "scatter3d",
+                        mode = "markers")
+
+
+surface_plot <- add_trace(p = surface_plot,
+                          z = surfaceMPG,
+                          x = axis_x,
+                          y = axis_y,
+                          type = "surface")
+
+surface_plot
+
+fit = lm(mpg~wt+hp, data = mtcars)
+hist(fit$residuals, col = "blue", main = "Histogram of Residuals")
+plot(fit$fitted.values,fit$residuals, main = "Plot of Residuals v. Fitted Values")
+
+library(GGally)
+mtcars %>% select(mpg,wt,hp) %>% ggpairs()
+```
+
+
+
+## Cross Validation
+```{r}
+NBA = read.csv(file.choose(),header = TRUE)
+NBATrain = read.csv(file.choose(),header = TRUE)
+NBATest = read.csv(file.choose(),header = TRUE)
+Model1_fit = lm(APPG ~ Height+Weight+FG+FT, data = NBATrain)
+summary(Model1_fit)
+Model1_Preds = predict(Model1_fit, newdata = NBATest)
+as.data.frame(Model1_Preds)
+
+# New Cross Validation 
+set.seed(4)
+TrainObs = sample(seq(1,dim(NBA)[1]),round(.75*dim(NBA)[1]),replace = FALSE)
+NBATrain = NBA[TrainObs,]
+NBATrain
+NBATest = NBA[-TrainObs,]
+NBATest
+Model1_fit = lm(APPG ~ Height+Weight+FG+FT, data = NBATrain)
+summary(Model1_fit)
+Model1_Preds = predict(Model1_fit, newdata = NBATest)
+as.data.frame(Model1_Preds)
+
+# Model 1
+MSPE = data.frame(Observed = NBATest$APPG, Predicted = Model1_Preds)
+MSPE$Resisdual = MSPE$Observed - MSPE$Predicted
+MSPE$SquaredResidual = MSPE$Resisdual^2
+MSPE
+mean(MSPE$SquaredResidual)
+
+#Alternative MSPE Calculation
+MSPE = mean((NBATest$APPG - Model1_Preds)^2)
+MSPE
+
+#Model 2
+Model2_fit = lm(APPG ~ Height + FG, data = NBATrain)
+summary(Model2_fit)
+Model2_Preds = predict(Model2_fit,newdata = NBATest)
+as.data.frame(Model2_Preds)
+MSPE = mean((NBATest$APPG - Model2_Preds)^2)
+MSPE
+```
+
+
+
+## More Stable Measure ... Average of many MSPEs
+```{r}
+numMSPEs = 1000
+MSPEHolderModel1 = numeric(numMSPEs)
+MSPEHolderModel2 = numeric(numMSPEs)
+
+for (i in 1:numMSPEs)
+{
+  TrainObs = sample(seq(1,dim(NBA)[1]),round(.75*dim(NBA)[1]),replace = FALSE)
+  NBATrain = NBA[TrainObs,]
+  NBATrain
+  NBATest = NBA[-TrainObs,]
+  NBATest
+  Model1_fit = lm(APPG ~ Height+Weight+FG+FT, data = NBATrain)
+  Model1_Preds = predict(Model1_fit, newdata = NBATest)
+  
+  #MSPE Model 1
+  MSPE = mean((NBATest$APPG - Model1_Preds)^2)
+  MSPE
+  MSPEHolderModel1[i] = MSPE
+  
+  #Model 2
+  Model2_fit = lm(APPG ~ Height + FG, data = NBATrain)
+  Model2_Preds = predict(Model2_fit,newdata = NBATest)
+  MSPE = mean((NBATest$APPG - Model2_Preds)^2)
+  MSPE
+  MSPEHolderModel2[i] = MSPE
+  
+}
+
+mean(MSPEHolderModel1)
+mean(MSPEHolderModel2)
+```
