@@ -1,2 +1,2 @@
-# ML for Continuous Response 
+# ML for a Continuous Response 
 ## Simple Linear Regression!
