@@ -1,0 +1,12 @@
+name: WordUP
+title: WordUP
+username:
+account: ddsshiny
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 945063
+bundleId: 2103676
+url: https://ddsshiny.shinyapps.io/WordUP/
+when: 1558610612.59131
+asMultiple: FALSE
+asStatic: FALSE

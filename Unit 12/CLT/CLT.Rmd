@@ -1,0 +1,49 @@
+---
+title: "LIve Session 2 CLT"
+author: "Bivin"
+date: "9/6/2018"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Simulator to Demonstrate CLT
+
+## Control Parameters
+```{r}
+n = 10 # sample size per sample
+simulations = 1000 #number of samples and thus number of xbars we will generate.  
+mu = 0; # mean parameter for use with normal distribuions
+sigma = 1; # standard deviation parameter for use with normal distribuions
+```
+
+## Data Holder
+```{r}
+xbar_holder = numeric(simulations) # This will hold all the sample means.
+```
+
+## Simulate and Store
+Generate 1000 samples each of size 10 and find the mean of each sample.  Then store each mean in the xbar_holder vector.
+
+```{r}
+for (i in 1:simulations)
+{ 
+  sample = rnorm(n,mean = mu, sd = sigma)
+  xbar = mean(sample)
+  xbar_holder[i] = xbar
+}
+```
+
+## display the distribution of sample means (plot a histogram of the sample means)
+```{r}
+hist(xbar_holder, col = "blue", main = paste("Distribution of the sample mean: n = ", n), xlab = "Sample Means", xlim = c(-4,4))
+```
+
+## summary statistics of the distribution of the simulated sample means. 
+```{r}
+summary(xbar_holder)
+```
+
+

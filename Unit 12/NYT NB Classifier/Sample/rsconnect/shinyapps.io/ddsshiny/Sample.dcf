@@ -1,0 +1,12 @@
+name: Sample
+title: Sample
+username:
+account: ddsshiny
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1064083
+bundleId: 2285091
+url: https://ddsshiny.shinyapps.io/Sample/
+when: 1564706615.55727
+asMultiple: FALSE
+asStatic: FALSE
