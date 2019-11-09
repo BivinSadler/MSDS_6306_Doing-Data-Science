@@ -1,0 +1,12 @@
+name: Faithful
+title: Faithful
+username:
+account: ddsshiny
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 840579
+bundleId: 2106651
+url: https://ddsshiny.shinyapps.io/Faithful/
+when: 1558711419.74449
+asMultiple: FALSE
+asStatic: FALSE

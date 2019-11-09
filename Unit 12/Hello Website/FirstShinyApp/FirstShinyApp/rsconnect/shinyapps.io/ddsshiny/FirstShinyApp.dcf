@@ -1,0 +1,13 @@
+name: FirstShinyApp
+title: FirstShinyApp
+username:
+account: ddsshiny
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 838224
+bundleId: 1986193
+url: https://ddsshiny.shinyapps.io/FirstShinyApp/
+when: 1554375310.70157
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: app.R

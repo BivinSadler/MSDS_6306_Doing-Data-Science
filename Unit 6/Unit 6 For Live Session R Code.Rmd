@@ -1,0 +1,142 @@
+---
+title: "Unit 6 LIve Session R Code"
+output: html_document
+---
+
+$ Unit 6 Question 1
+Loading, Splitting in Training / Test, Classifying, Evaulating the Model
+```{r}
+
+titanicJSON = getURL("https://public.opendatasoft.com/api/records/1.0/search/?dataset=titanic-passengers&rows=2000&facet=survived&facet=pclass&facet=sex&facet=age&facet=embarked")
+
+titanicData = fromJSON(titanicJSON)
+
+titanicDataDF = titanicData$records$fields
+
+trainIndex = sample(seq(1:891), 650)
+
+trainTitanic = titanicDataDF[trainIndex,]
+testTitanic = titanicDataDF[-trainIndex,]
+
+classifications = knn(trainTitanic[(!is.na(trainTitanic$age) & !is.na(trainTitanic$pclass)),c(4,6)],testTitanic[(!is.na(testTitanic$age) & !is.na(testTitanic$pclass)),c(4,6)],trainTitanic$survived[(!is.na(trainTitanic$age) & !is.na(trainTitanic$pclass))], prob = TRUE, k = 5)
+
+table(classifications,testTitanic$survived[(!is.na(testTitanic$age) & !is.na(testTitanic$pclass))])
+CM = confusionMatrix(table(classifications,testTitanic$survived[(!is.na(testTitanic$age) & !is.na(testTitanic$pclass))]))
+
+```
+
+Predicting Survial for a 30 year old in 1st,2nd,3rd class
+```{r}
+Thirty1= data.frame(aga = 30, pclass = 1)
+Thirty2= data.frame(aga = 30, pclass = 2)
+Thirty3= data.frame(aga = 30, pclass = 3)
+
+knn(titanicDataDF[(!is.na(titanicDataDF$age) & !is.na(titanicDataDF$pclass)),c(4,6)],Thirty1,titanicDataDF$survived[(!is.na(titanicDataDF$age) & !is.na(titanicDataDF$pclass))], prob = TRUE, k = 5)
+
+knn(titanicDataDF[(!is.na(titanicDataDF$age) & !is.na(titanicDataDF$pclass)),c(4,6)],Thirty2,titanicDataDF$survived[(!is.na(titanicDataDF$age) & !is.na(titanicDataDF$pclass))], prob = TRUE, k = 5)
+
+knn(titanicDataDF[(!is.na(titanicDataDF$age) & !is.na(titanicDataDF$pclass)),c(4,6)],Thirty3,titanicDataDF$survived[(!is.na(titanicDataDF$age) & !is.na(titanicDataDF$pclass))], prob = TRUE, k = 5)
+
+```
+
+Classify the 418 from the other test set.  We don't have the true labels for these... you can get a score for these by submitting them to Kaggle. (where I got the test set from.)
+```{r}
+
+testTitanicKaggle = read.csv(file.choose(),header = TRUE)
+names(testTitanicKaggle)[2] = "pclass"
+names(testTitanicKaggle)[5] = "age"
+
+testTitanicKaggleClean = testTitanicKaggle[(!is.na(testTitanicKaggle$pclass) & !is.na(testTitanicKaggle$age)),]
+
+classifications = knn(trainTitanic[(!is.na(trainTitanic$age) & !is.na(trainTitanic$pclass)),c(4,6)],testTitanicKaggleClean[,c(5,2)],trainTitanic$survived[(!is.na(trainTitanic$age) & !is.na(trainTitanic$pclass))], prob = TRUE, k = 5)
+
+```
+
+BONUS: M/F
+```{r}
+#Male
+trainTitanicMale = trainTitanic %>% filter(sex == "male")
+testTitanicMale = testTitanic %>% filter(sex == "male")
+
+classificationsMale = knn(trainTitanicMale[(!is.na(trainTitanicMale$age) & !is.na(trainTitanicMale$pclass)),c(4,6)],testTitanicMale[(!is.na(testTitanicMale$age) & !is.na(testTitanicMale$pclass)),c(4,6)],trainTitanicMale$survived[(!is.na(trainTitanicMale$age) & !is.na(trainTitanicMale$pclass))], prob = TRUE, k = 5)
+
+trainTitanicFemale = trainTitanic %>% filter(sex == "female")
+testTitanicFemale = testTitanic %>% filter(sex == "female")
+
+classificationsFemale = knn(trainTitanicFemale[(!is.na(trainTitanicFemale$age) & !is.na(trainTitanicFemale$pclass)),c(4,6)],testTitanicFemale[(!is.na(testTitanicFemale$age) & !is.na(testTitanicFemale$pclass)),c(4,6)],trainTitanicFemale$survived[(!is.na(trainTitanicFemale$age) & !is.na(trainTitanicFemale$pclass))], prob = TRUE, k = 5)
+
+classificationsMF = factor(c(classificationsMale,classificationsFemale), labels = c("No","Yes"))
+
+testM = testTitanicMale[(!is.na(testTitanicMale$age) & !is.na(testTitanicMale$pclass)),]
+testF = testTitanicFemale[(!is.na(testTitanicFemale$age) & !is.na(testTitanicFemale$pclass)),]
+
+testMF = rbind(testM,testF)
+
+table(classificationsMF,testMF$survived[(!is.na(testMF$age) & !is.na(testMF$pclass))])
+CM = confusionMatrix(table(classificationsMF,testMF$survived[(!is.na(testMF$age) & !is.na(testMF$pclass))]))
+
+```
+
+
+
+# Question 2
+
+```{r}
+set.seed(1)
+iterations = 500
+numks = 60
+splitPerc = .8
+
+masterAcc = matrix(nrow = iterations, ncol = numks)
+
+for(j in 1:iterations)
+{
+  trainIndices = sample(1:dim(iris)[1],round(splitPerc * dim(iris)[1]))
+  train = iris[trainIndices,]
+  test = iris[-trainIndices,]
+  for(i in 1:numks)
+  {
+    classifications = knn(train[,c(1,3)],test[,c(1,3)],train$Species, prob = TRUE, k = i)
+    table(classifications,test$Species)
+    CM = confusionMatrix(table(classifications,test$Species))
+    masterAcc[j,i] = CM$overall[1]
+  }
+  
+}
+
+MeanAcc = colMeans(masterAcc)
+
+plot(seq(1,numks,1),MeanAcc, type = "l")
+
+which.max(MeanAcc)
+max(MeanAcc)
+
+```
+
+# BONUS
+```{r}
+set.seed(1)
+iterations = 500
+numks = 90
+
+masterAcc = matrix(nrow = iterations, ncol = numks)
+
+for(j in 1:iterations)
+{
+  
+  for(i in 1:numks)
+  {
+    CM = confusionMatrix(table(iris[,5],knn.cv(iris[,c(1,2)],iris[,5],k = i)))
+    masterAcc[j,i] = CM$overall[1]
+    
+  }
+  
+}
+
+MeanAcc = colMeans(masterAcc)
+
+plot(seq(1,numks,1),MeanAcc, type = "l")
+
+which.max(MeanAcc)
+max(MeanAcc)
+```
