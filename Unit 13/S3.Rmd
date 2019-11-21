@@ -1,0 +1,167 @@
+---
+title: "Unit 13"
+author: "Bivin"
+date: "5/24/2019"
+output: html_document
+---
+
+---
+title: "AWS EC2,S3 and R"
+author: "Bivin Sadler"
+date: "6/11/2019"
+output: html_document
+---
+
+# Loading Data From S3 URL Using RCurl
+```{r}
+install.packages("RCurl")
+library("RCurl") 
+creativity <- read.table(textConnection(getURL(
+  "https://s3.us-east-2.amazonaws.com/ds6306unit13/Creativity.csv"
+)), sep=",", header=TRUE)
+
+iris <- jsonlite::fromJSON("https://s3.us-east-2.amazonaws.com/ds6306unit13/iris")
+
+climate <- read.table(textConnection(getURL(
+  "https://cgiardata.s3-us-west-2.amazonaws.com/ccafs/amzn.csv"
+)), sep=",", header=TRUE)
+```
+
+
+
+# Loading Data From S3 Objects Using the aws.s3 package
+```{r}
+library(tidyverse)
+library(aws.s3)
+
+Sys.setenv("AWS_ACCESS_KEY_ID" = "AKIAJUVKJXRP5HFWKXTQ",
+           "AWS_SECRET_ACCESS_KEY" = "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")
+
+#Sys.setenv("AWS_ACCESS_KEY_ID" = "AKIAJUVKJXRP5HFWKXTQ",
+#           "AWS_SECRET_ACCESS_KEY" = "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",
+#           "AWS_DEFAULT_REGION" = "us-east-1",
+#           "AWS_SESSION_TOKEN" = "mytoken")
+
+
+# Using aws.s3
+aws.s3::bucketlist()
+aws.s3::get_bucket("ds6306unit13")
+
+
+# read and write from ojbect
+
+#Read in Creativity.csv
+creativity = s3read_using(FUN = read.csv,
+                    bucket = "ds6306unit13",
+                    object = "Creativity.csv")
+
+t.test(Score~Treatment, data = creativity)
+
+
+#Write mtcars to S3
+s3write_using(mtcars,FUN = write.csv,
+                    bucket = "ds6306unit13",
+                    object = "mtcars.csv")
+
+
+# Read in and change IRIS and then write back
+library(jsonlite)
+iris2 = s3read_using(FUN = fromJSON,
+                    bucket = "ds6306unit13",
+                    object = "iris")
+
+iris2 = iris2 %>% mutate(diff_Sep_Pet_Length = Sepal.Length - Petal.Length, diff_Sep_Pet_Width = Sepal.Width - Petal.Width)
+
+iris2 %>% ggplot(aes(x = diff_Sep_Pet_Length, y = diff_Sep_Pet_Width, color = Species)) + geom_point() + geom_smooth(method = "lm")
+
+s3write_using(iris2,FUN = write_json,
+                    bucket = "ds6306unit13",
+                    object = "iris2.txt")
+
+#Write a plot/chart to S3
+
+png("irisScatter.png")
+
+iris2 %>% ggplot(aes(x = diff_Sep_Pet_Length, y = diff_Sep_Pet_Width, color = Species)) + geom_point() + geom_smooth(method = "lm")
+
+dev.off()
+
+put_object("irisScatter.png", object = "irisScatter.png", bucket = "ds6306unit13")
+
+```
+
+
+
+#AcuSpike Heatmap Example!
+```{r}
+
+library(tidyverse)
+library(readr)
+library(aws.s3)
+
+Sys.setenv("AWS_ACCESS_KEY_ID" = "AKIAJUVKJXRP5HFWKXTQ",
+           "AWS_SECRET_ACCESS_KEY" = "VsMPEWvhsjL2CHF7dHfn5InHb6fdplb+7QtBT9mu")
+
+jpeg("ThePlot.jpeg")
+mtcars %>% ggplot(aes(x = mpg, y = cyl)) + geom_point()
+dev.off()
+
+#save the heatmap
+put_object("ThePlot.jpeg", object = "ThePlot111.jpeg", bucket = "ds6306unit13")
+
+
+
+# Data clean and heat map for Acuspikes 
+# Data has been read into a Dataframe called "Acu"
+
+library(ggplot2)
+library(maps)
+library(dplyr)
+library(mapproj)
+
+#Read in the Data from S3
+Acu = s3read_using(FUN = read.csv,
+                    bucket = "ds6306unit13",
+                    object = "Company X Customer Location.csv")# read in company data
+
+lookup = data.frame(abb = state.abb, State = state.name) #makes a data frame with State name and abbreviation. 
+colnames(Acu)[2] = "abb" # Change Column Name
+Acu2 = merge(Acu,lookup,"abb") # make one dataset with state names and abb
+AcuMapData = count(Acu2,State) #count up the occurance of each state. 
+#AcuMapData = AcuMapData[-c(5,9,43),] #Shows contrast between other states better
+colnames(AcuMapData)[2] = "AcuSpikes" #change "n" to "Acuspikes"
+AcuMapData$region <- tolower(AcuMapData$State)
+AcuMapData2 = AcuMapData[-1]
+states <- map_data("state")
+map.df <- merge(states,AcuMapData2, by="region", all.x=T)
+map.df <- map.df[order(map.df$order),]
+
+#Generate and save the heatmap on EC2
+png("AcuHeatmap.png")
+ggplot(map.df, aes(x=long,y=lat,group=group))+
+  geom_polygon(aes(fill=AcuSpikes))+
+  geom_path()+ 
+  scale_fill_gradientn(colours=rev(heat.colors(10)),na.value="grey90")+ggtitle("Acuspike Systems by State")+
+coord_map()
+dev.off()
+
+#Save the heatmap to S3
+put_object("AcuHeatmap.png", object = "AcuHeatmap.png", bucket = "ds6306unit13")
+
+#Save the new data set used to generate the heapmap to S3
+s3write_using(map.df,FUN = write.csv,
+                    bucket = "ds6306unit13",
+                    object = "AcuMapData.csv")
+
+```
+
+
+
+
+# For Live Session: Load Big Data Set and do Basic Analysis given URL.  
+## Data set has been loaded into S3.
+
+
+
+
+
