@@ -1,4 +1,4 @@
-# MDS-6306-Doing-Data-Science-Fall-2019  
+# MDS-6306-Doing-Data-Science  
 
 ## Welcome to Doing Data Science (MDS 6306)!
 
