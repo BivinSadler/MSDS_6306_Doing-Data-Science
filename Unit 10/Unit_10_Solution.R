@@ -2,16 +2,14 @@
 library(tidyverse)
 
 # Read in cars data set
-cars <- read.csv('cars.csv')
+cars <- read.csv(file.choose(),header = TRUE)
 
 # Always important to look at the basic structure first
-str(cars) # I see car information: 2 factor columns, 3 num columns, and 4 int columns
-summary(cars) # I see two NAs in Horsepower
 
-# Let's look at distribution of weight and mpg values
-par(mfrow=c(2,1))
-hist(cars$MPG, main="MPG Distribution", xlab="MPG")
-hist(cars$Weight, main="Weight Distribution", xlab="Weight")
+
+
+# I see car information: 2 factor columns, 3 num columns, and 4 int columns
+summary(cars) # I see two NAs in Horsepower
 
 # Scatter plot to inspect general trend
 cars %>% ggplot(aes(x=Weight, y=MPG)) + geom_point() + ggtitle("Weight vs MPG")
@@ -106,9 +104,17 @@ train(MPG ~ Weight + I(Weight^2), method = "lm", data = cars, trControl = trainC
 
 
 
-# Using model 2 let's estimate the mean mpg
-car2000 <- data.frame(Weight = 2000, WeightSquared = 2000^2)
-car2000_pred <- predict(model2_fit, newdata = car2000, interval = "prediction")
+# Using model 2 let's estimate the mean mpg of the subpopulaiton of cars that weigh 2000lbs
+fit <- lm(MPG ~ Weight + I(Weight^2),data = cars)
+car2000 <- data.frame(Weight = 2000)
+car2000_conf <- predict(fit, newdata = car2000, interval = "confidence")
+car2000_conf
+
+# Using model 2 let's estimate the mpg of an individual car that weighs 2000lbs
+fit <- lm(MPG ~ Weight + I(Weight^2),data = cars)
+car2000 <- data.frame(Weight = 2000)
+car2000_pred <- predict(fit, newdata = car2000, interval = "prediction")
+car2000_pred
 
 # Plot predicted mean on our graph
 cars %>% ggplot(aes(x = Weight, y = MPG)) + geom_point() + geom_line(data = cars, aes( x = Weight, y = preds, col = "red", size = 1)) + ggtitle("LR Model: Weight + Weight^2 vs MPG") + scale_color_discrete(name = "Predicted") + geom_point(aes(x=2000, y=floor(car2000_pred[1])), color='blue', shape='square', size=3)
@@ -219,7 +225,7 @@ last_MSPE = mean((cars$Horsepower - last_preds)^2)
 print(paste("MSPE:", last_MSPE))
 
 # Ok, I'm happy with that score. Unfortunately, the shape is now a hyperplane which we can't plot.
-# Onto the final question
+# On to the final question
 # Scatter plot
 cars %>% ggplot(aes(x = Horsepower, y = MPG)) + geom_point()
 
@@ -269,7 +275,7 @@ print(paste("MSPE:", multiMPG_MSPE))
 
 # Winner! Ohhhh no, I don't have values for my other features :sad-face:
 # Fine!
-horse250 <- predict(horse_fit, newdata = data.frame(Horsepower = 250, HorseSquared = 250^2), interval = "prediction")
+horse250 <- predict(horse_fit, newdata = data.frame(Horsepower = 250, HorseSquared = 250^2), interval = "confidence")
 horse250
 
 # Plot predicted mean on our graph
