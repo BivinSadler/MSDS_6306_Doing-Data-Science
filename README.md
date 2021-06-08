@@ -9,5 +9,4 @@
 3. Data Sets
 4. Other supporting material needed for each Unit
 
-Have a Blast and see you in Live Session!
-Will do!
+Have a Blast and see you in Live Session!!!!
