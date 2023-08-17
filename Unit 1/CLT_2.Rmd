@@ -15,7 +15,6 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Control Parameters
 ```{r}
-df = read.table("/Users/bivin/Desktop/OLD COMPUTER ARCHIVES/KadAfrica/MSDS/DDS/MSDS 6306/Unit 5/yob2016.txt",stringsAsFactors = FALSE,header = FALSE,sep = ";")
 n1 = 10 # sample size per sample for 1st distribution
 n2 = 100 # sample size per sample for 2nd distribution (we will compare these distribuions) 
 simulations = 1000 #number of samples and thus number of xbars we will generate.  
