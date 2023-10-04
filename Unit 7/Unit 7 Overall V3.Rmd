@@ -3,6 +3,8 @@ title: "Unit 7 Overall"
 author: "Bivin"
 date: "5/1/2019"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 #Volleyball Example
@@ -126,13 +128,13 @@ Pnews_word = function(key_word, trainingSet, alphaLaplace = 1, betaLaplace = 1) 
   pNews = dim(NewsGroup)[1] / (dim(NewsGroup)[1] + dim(OtherGroup)[1])
   pOther = 1 - pNews
   
-  pKWGivenNews = (length(str_which(NewsGroup$response.docs.headline.main,regex(str_c("\\b",key_word,"\\b",sep=""),ignore.case = TRUE)))+alphaLaplace)/(dim(NewsGroup)[1]+betaLaplace)
-  pKWGivenOther = (length(str_which(OtherGroup$response.docs.headline.main,regex(str_c("\\b",key_word,"\\b",sep=""),ignore.case = TRUE)))+alphaLaplace)/(dim(OtherGroup)[1]+betaLaplace)
+  pKWGivenNews = (length(str_which(NewsGroup$response.docs.headline.main,regex(str_c("\\b",key_word,"\\b",sep=""),ignore.case = TRUE))))/(dim(NewsGroup)[1])
+  pKWGivenOther = (length(str_which(OtherGroup$response.docs.headline.main,regex(str_c("\\b",key_word,"\\b",sep=""),ignore.case = TRUE))))/(dim(OtherGroup)[1])
   
   pKW = length(str_which(trainingSet$response.docs.headline.main,regex(str_c("\\b",key_word,"\\b",sep=""),ignore.case = TRUE)))/dim(trainingSet)[1]
   
-  pNewsGivenKW = pKWGivenNews*pNews/pKW
-  pOtherGivenKW = pKWGivenOther*pOther/pKW
+  pNewsGivenKW = ((pKWGivenNews*pNews)+alphaLaplace)/(pKW+betaLaplace)
+  pOtherGivenKW = ((pKWGivenOther*pOther)+alphaLaplace)/(pKW+betaLaplace)
   
   return(pNewsGivenKW)
 }
@@ -236,6 +238,8 @@ sd(dfMF[11:20,1])
 sd(dfMF[1:10,2])
 sd(dfMF[11:20,2])
 dnorm(68,69.57463,2.405437)
+
+# P(M|H,W) =  P(H|M)*P(W|M)*P(M) / (P(H|M)*P(W|M)P(M) + (P(H|F)*P(W|F)P(F))
 dnorm(68,69.57463,2.405437)*dnorm(135,151.6851,8.276395)*.5/(dnorm(68,69.57463,2.405437)*dnorm(135,151.6851,8.276395)*.5 + dnorm(68,65.13555,1.548547)*dnorm(135,132.9786,10.11479)*.5)
 
 ```
